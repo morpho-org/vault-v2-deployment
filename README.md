@@ -1,5 +1,21 @@
 # Morpho VaultV2 Deployment
 
+#### ⚠️ DISCLAIMER
+
+**This repository is provided for educational purposes only. The Morpho Association cannot be held responsible for any loss of funds, damages, or other consequences that may result from using this script or any associated code. Use at your own risk.**
+
+**By using this script, you acknowledge that:**
+- You understand the risks associated with smart contract deployment and cryptocurrency transactions
+- You have thoroughly tested the script in a safe environment before any mainnet deployment
+- You are solely responsible for any funds or assets that may be lost due to bugs, errors, or misuse
+- The code is provided "as is" without any warranties or guarantees
+
+**Please ensure you understand the code and test thoroughly before deploying to mainnet.**
+
+---
+
+## Overview 
+
 This repository provides a "one-click" script to deploy a Morpho VaultV2 using a Morpho VaultV1 as an underlying liquidity market pool.
 
 See VaultV2 deployment documentation [here](https://docs.morpho.org/learn/concepts/vault-v2/).
