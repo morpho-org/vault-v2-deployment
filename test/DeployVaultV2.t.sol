@@ -33,6 +33,15 @@ contract DeployTest is Test {
         );
     }
 
+    function test_DeployWithSameAddress() public {
+        address broadcaster = 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38;
+        vaultV2 = IVaultV2(
+            new DeployVaultV2().runWithArguments(
+                broadcaster, broadcaster, broadcaster, broadcaster, timelockDuration, vaultV1
+            )
+        );
+    }
+
     function test_FullDeployment() public view {
         assertEq(vaultV2.owner(), owner, "Owner should be set correctly");
         assertEq(vaultV2.curator(), curator, "Curator should be set correctly");
