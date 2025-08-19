@@ -6,7 +6,6 @@ import {Script, console} from "forge-std/Script.sol";
 import {IVaultV2} from "vault-v2/interfaces/IVaultV2.sol";
 import {VaultV2} from "vault-v2/VaultV2.sol";
 import {MorphoVaultV1Adapter} from "vault-v2/adapters/MorphoVaultV1Adapter.sol";
-import {SingleMorphoVaultV1Vic} from "vault-v2/vic/SingleMorphoVaultV1Vic.sol";
 
 import {IERC4626 as IVaultV1} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
@@ -51,10 +50,6 @@ contract DeployVaultV2 is Script {
         address morphoVaultV1Adapter = address(new MorphoVaultV1Adapter(address(vaultV2), address(vaultV1)));
         console.log("MorphoVaultV1Adapter deployed at:", morphoVaultV1Adapter);
 
-        // --- Step 4: Deploy the Vault Interest Controller (VIC) ---
-        address singleMorphoVaultV1Vic = address(new SingleMorphoVaultV1Vic(morphoVaultV1Adapter));
-        console.log("SingleMorphoVaultV1 VIC deployed at:", singleMorphoVaultV1Vic);
-
         // --- Step 5: Submit All Timelocked Actions (+ Allocator Role) ---
         bytes memory idData = abi.encode("this", morphoVaultV1Adapter);
         vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (broadcaster, true)));
@@ -62,7 +57,6 @@ contract DeployVaultV2 is Script {
             vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (broadcaster, false)));
             vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (allocator, true)));
         }
-        vaultV2.submit(abi.encodeCall(vaultV2.setVic, (singleMorphoVaultV1Vic)));
         vaultV2.submit(abi.encodeCall(vaultV2.setIsAdapter, (morphoVaultV1Adapter, true)));
         vaultV2.submit(abi.encodeCall(vaultV2.increaseAbsoluteCap, (idData, type(uint128).max)));
         vaultV2.submit(abi.encodeCall(vaultV2.increaseRelativeCap, (idData, 1e18)));
@@ -75,7 +69,6 @@ contract DeployVaultV2 is Script {
         if (broadcaster != allocator) {
             vaultV2.setIsAllocator(allocator, true);
         }
-        vaultV2.setVic(singleMorphoVaultV1Vic);
         vaultV2.setIsAdapter(morphoVaultV1Adapter, true);
         vaultV2.increaseAbsoluteCap(idData, type(uint128).max);
         vaultV2.increaseRelativeCap(idData, 1e18);
@@ -96,7 +89,6 @@ contract DeployVaultV2 is Script {
             vaultV2.increaseTimelock(IVaultV2.setSharesGate.selector, timelockDuration);
             vaultV2.increaseTimelock(IVaultV2.setReceiveAssetsGate.selector, timelockDuration);
             vaultV2.increaseTimelock(IVaultV2.setSendAssetsGate.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setVic.selector, timelockDuration);
             vaultV2.increaseTimelock(IVaultV2.setIsAdapter.selector, timelockDuration);
             vaultV2.increaseTimelock(IVaultV2.abdicateSubmit.selector, timelockDuration);
             vaultV2.increaseTimelock(IVaultV2.setPerformanceFee.selector, timelockDuration);

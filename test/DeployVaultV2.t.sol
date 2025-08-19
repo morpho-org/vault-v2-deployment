@@ -11,6 +11,12 @@ import {IVaultV2} from "vault-v2/interfaces/IVaultV2.sol";
 import {IERC4626 as IVaultV1} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import {ERC20Mock as AssetMock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
+contract newAdapter {
+    function realAssets() external view returns (uint256 assets) {
+        return 100 ether;
+    }
+}
+
 contract DeployTest is Test {
     address owner;
     address curator;
@@ -85,22 +91,21 @@ contract DeployTest is Test {
         uint256 newCap = 1e18;
 
         // All selectors to test
-        bytes[] memory calls = new bytes[](15);
+        bytes[] memory calls = new bytes[](14);
         calls[0] = abi.encodeCall(vaultV2.setIsAllocator, (dummyAddr, true));
         calls[1] = abi.encodeCall(vaultV2.setSharesGate, (dummyAddr));
         calls[2] = abi.encodeCall(vaultV2.setReceiveAssetsGate, (dummyAddr));
         calls[3] = abi.encodeCall(vaultV2.setSendAssetsGate, (dummyAddr));
-        calls[4] = abi.encodeCall(vaultV2.setIsAdapter, (dummyAddr, true));
+        calls[4] = abi.encodeCall(vaultV2.setIsAdapter, (address(new newAdapter()), true));
         calls[5] = abi.encodeCall(vaultV2.abdicateSubmit, (IVaultV2.setIsAdapter.selector));
         calls[6] = abi.encodeCall(vaultV2.setPerformanceFeeRecipient, (dummyAddr));
         calls[7] = abi.encodeCall(vaultV2.setManagementFeeRecipient, (dummyAddr));
         calls[8] = abi.encodeCall(vaultV2.setPerformanceFee, (newFee));
         calls[9] = abi.encodeCall(vaultV2.setManagementFee, (newFee));
-        calls[10] = abi.encodeCall(vaultV2.setVic, (dummyAddr));
-        calls[11] = abi.encodeCall(vaultV2.increaseAbsoluteCap, (idData, newCap));
-        calls[12] = abi.encodeCall(vaultV2.increaseRelativeCap, (idData, newCap));
-        calls[13] = abi.encodeCall(vaultV2.setForceDeallocatePenalty, (dummyAddr, newPenalty));
-        calls[14] = abi.encodeCall(vaultV2.setIsAllocator, (dummyAddr, false));
+        calls[10] = abi.encodeCall(vaultV2.increaseAbsoluteCap, (idData, newCap));
+        calls[11] = abi.encodeCall(vaultV2.increaseRelativeCap, (idData, newCap));
+        calls[12] = abi.encodeCall(vaultV2.setForceDeallocatePenalty, (dummyAddr, newPenalty));
+        calls[13] = abi.encodeCall(vaultV2.setIsAllocator, (dummyAddr, false));
 
         bool success;
         vm.startPrank(curator);
@@ -114,7 +119,7 @@ contract DeployTest is Test {
 
             vm.warp(block.timestamp + timelockDuration);
             (bool ok,) = address(vaultV2).call(calls[i]);
-            assert(ok);
+            assertTrue(ok, string.concat("call failed at index ", vm.toString(i)));
         }
         vm.stopPrank();
     }
