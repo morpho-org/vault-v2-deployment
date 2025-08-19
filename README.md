@@ -26,7 +26,6 @@ The script will deploy the following smart contracts:
 
 - A **VaultV2**
 - A **VaultV1 Adapter**
-- The **Automated Vic for Vault V1**
 
 You need to provide the following parameters as environment variables:
 
