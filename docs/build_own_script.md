@@ -44,20 +44,8 @@ import {IERC4626 as IVaultV1} from "openzeppelin-contracts/contracts/interfaces/
 IVaultV1 vaultV1 = IVaultV1(vm.envAddress("VAULT_V1"));
 ```
 
----
 
-## Step 4: Determine Broadcaster Address
-
-**Description:**
-We define the Broadcaster as the address performing the deployment and will eventually transfer their roles to the respective addresses listed in step 1. The Broadcaster can be any address holding ETH to cover transaction costs for their transactions to be executed. In the deploy script, we rely on the environment variable `PRIVATE_KEY`, which is a straightforward way to use the script, while not being secure enough for mainnet deployment. Foundry proposes other more secure alternatives.
-
-```solidity
-address broadcaster = vm.addr(vm.envUint("PRIVATE_KEY"));
-```
-
----
-
-## Step 5: Deploy VaultV2
+## Step 4: Deploy VaultV2
 
 **Description:**
 Deploy the VaultV2 contract directly, with
@@ -72,7 +60,7 @@ VaultV2 vaultV2 = new VaultV2(broadcaster, vaultV1.asset());
 
 ---
 
-## Step 6: Grant Curator Role to Broadcaster
+## Step 5: Grant Curator Role to Broadcaster
 
 **Description:**
 Temporarily assign the Curator role to the Broadcaster for initial setup.
@@ -83,7 +71,7 @@ vaultV2.setCurator(broadcaster);
 
 ---
 
-## Step 7: Deploy MorphoVaultV1 Adapter
+## Step 6: Deploy MorphoVaultV1 Adapter
 
 **Description:**
 Deploy the adapter that allows VaultV2 to interact with VaultV1.
@@ -95,19 +83,7 @@ address morphoVaultV1Adapter = address(new MorphoVaultV1Adapter(address(vaultV2)
 
 ---
 
-## Step 8: Deploy SingleMorphoVaultV1 VIC
-
-**Description:**
-Deploy the Vault Interest Controller (VIC) for the adapter. This VIC is specially designed to work out of the box with a VaultV1.
-
-```solidity
-import {SingleMorphoVaultV1Vic} from "vault-v2/vic/SingleMorphoVaultV1Vic.sol";
-address singleMorphoVaultV1Vic = address(new SingleMorphoVaultV1Vic(morphoVaultV1Adapter));
-```
-
----
-
-## Step 9: Submit Timelocked Actions
+## Step 7: Submit Timelocked Actions
 
 **Description:**
 Submit all actions that require a timelock (such as setting roles and caps) to the vault. These actions are queued for execution.
@@ -119,7 +95,6 @@ vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (deployer, true)));
 // Submit Allocator removal from the deployer
 vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (deployer, false)));
 vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (allocator, true)));
-vaultV2.submit(abi.encodeCall(vaultV2.setVic, (singleMorphoVaultV1Vic)));
 vaultV2.submit(abi.encodeCall(vaultV2.setIsAdapter, (morphoVaultV1Adapter, true)));
 vaultV2.submit(abi.encodeCall(vaultV2.increaseAbsoluteCap, (idData, type(uint128).max)));
 vaultV2.submit(abi.encodeCall(vaultV2.increaseRelativeCap, (idData, 1e18)));
@@ -127,7 +102,7 @@ vaultV2.submit(abi.encodeCall(vaultV2.increaseRelativeCap, (idData, 1e18)));
 
 ---
 
-## Step 10: Execute Timelocked Actions
+## Step 8: Execute Timelocked Actions
 
 **Description:**
 Immediately execute the actions that were just submitted (since timelocks are zero by default).
@@ -135,7 +110,6 @@ Immediately execute the actions that were just submitted (since timelocks are ze
 ```solidity
 vaultV2.setIsAllocator(broadcaster, true);
 vaultV2.setIsAllocator(allocator, true);
-vaultV2.setVic(singleMorphoVaultV1Vic);
 vaultV2.setIsAdapter(morphoVaultV1Adapter, true);
 vaultV2.increaseAbsoluteCap(idData, type(uint128).max);
 vaultV2.increaseRelativeCap(idData, 1e18);
@@ -143,7 +117,7 @@ vaultV2.increaseRelativeCap(idData, 1e18);
 
 ---
 
-## Step 11: Set the Liquidity Market
+## Step 9: Set the Liquidity Market
 
 **Description:**
 Set the liquidity market for the vault using the adapter.
@@ -154,7 +128,7 @@ vaultV2.setLiquidityAdapterAndData(morphoVaultV1Adapter, bytes(""));
 
 ---
 
-## Step 12: Remove Allocator Role from Broadcaster
+## Step 10: Remove Allocator Role from Broadcaster
 
 **Description:**
 Remove the allocator role from the Broadcaster before setting timelocks.
@@ -165,7 +139,7 @@ vaultV2.setIsAllocator(broadcaster, false);
 
 ---
 
-## Step 13: Set Timelocks (Optional)
+## Step 11: Set Timelocks (Optional)
 
 **Description:**
 If a timelock duration is specified, set the timelock for various vault functions.
@@ -176,7 +150,6 @@ if (timelockDuration > 0) {
     vaultV2.increaseTimelock(IVaultV2.setSharesGate.selector, timelockDuration);
     vaultV2.increaseTimelock(IVaultV2.setReceiveAssetsGate.selector, timelockDuration);
     vaultV2.increaseTimelock(IVaultV2.setSendAssetsGate.selector, timelockDuration);
-    vaultV2.increaseTimelock(IVaultV2.setVic.selector, timelockDuration);
     vaultV2.increaseTimelock(IVaultV2.setIsAdapter.selector, timelockDuration);
     vaultV2.increaseTimelock(IVaultV2.abdicateSubmit.selector, timelockDuration);
     vaultV2.increaseTimelock(IVaultV2.setPerformanceFee.selector, timelockDuration);
@@ -191,7 +164,7 @@ if (timelockDuration > 0) {
 
 ---
 
-## Step 14: Set Final Roles
+## Step 12: Set Final Roles
 
 **Description:**
 Assign the final roles for the vault: Curator, Sentinel (if provided), and Owner.

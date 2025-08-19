@@ -50,7 +50,7 @@ contract DeployVaultV2 is Script {
         address morphoVaultV1Adapter = address(new MorphoVaultV1Adapter(address(vaultV2), address(vaultV1)));
         console.log("MorphoVaultV1Adapter deployed at:", morphoVaultV1Adapter);
 
-        // --- Step 5: Submit All Timelocked Actions (+ Allocator Role) ---
+        // --- Step 4: Submit All Timelocked Actions (+ Allocator Role) ---
         bytes memory idData = abi.encode("this", morphoVaultV1Adapter);
         vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (broadcaster, true)));
         if (broadcaster != allocator) {
@@ -64,7 +64,7 @@ contract DeployVaultV2 is Script {
 
         // Functions have timelock[selector] = 0 by default, so should be executable immediately after submit
 
-        // --- Step 6: Execute the actions ---
+        // --- Step 5: Execute the actions ---
         vaultV2.setIsAllocator(broadcaster, true);
         if (broadcaster != allocator) {
             vaultV2.setIsAllocator(allocator, true);
@@ -74,16 +74,16 @@ contract DeployVaultV2 is Script {
         vaultV2.increaseRelativeCap(idData, 1e18);
         console.log("All timelocked actions executed");
 
-        // --- Step 7: Set the Liquidity Market ---
+        // --- Step 6: Set the Liquidity Market ---
         vaultV2.setLiquidityAdapterAndData(morphoVaultV1Adapter, bytes(""));
         console.log("Allocator set the liquidity market");
 
-        // -- Step 8: remove allocator role before setting TL ---
+        // -- Step 7: remove allocator role before setting TL ---
         if (broadcaster != allocator) {
             vaultV2.setIsAllocator(broadcaster, false);
         }
 
-        // -- Step 9: set the timelocks
+        // -- Step 8: set the timelocks
         if (timelockDuration > 0) {
             vaultV2.increaseTimelock(IVaultV2.setIsAllocator.selector, timelockDuration);
             vaultV2.increaseTimelock(IVaultV2.setSharesGate.selector, timelockDuration);
@@ -101,7 +101,7 @@ contract DeployVaultV2 is Script {
             console.log("Allocator timelocks increased");
         }
 
-        // --- Step 10: Set the Roles ---
+        // --- Step 9: Set the Roles ---
         vaultV2.setCurator(curator);
         if (sentinel != address(0)) {
             vaultV2.setIsSentinel(sentinel, true);
