@@ -7,7 +7,7 @@ on:
     paths:
       - 'script/**'
       - 'deploy_anvil.sh'
-      - '.github/workflows/deploy.yml'
+      - '.github/workflows/test-deployment.yml'
 
 env:
   FOUNDRY_PROFILE: ci
