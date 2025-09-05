@@ -10,6 +10,4 @@ contract AdapterRegistryMock is IAdapterRegistry {
     function isInRegistry(address) external view override returns (bool) {
         return true;
     }
-
-    
 }
