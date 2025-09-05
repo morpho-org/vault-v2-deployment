@@ -87,6 +87,9 @@ Before deploying, you need to set up your environment variables. We provide a `.
    - `ALLOCATOR`: Address of the Allocator role
    - `SENTINEL`: Address of the Sentinel role (optional)
    - `VAULT_V1`: Address of the VaultV1 to use as liquidity market
+   - `ADAPTER_REGISTRY`: Address of the Adapter Registry
+   - `VAULT_V2_FACTORY`: Address of the VaultV2 Factory
+   - `MORPHO_VAULT_V1_ADAPTER_FACTORY`: Address of the MorphoVaultV1 Adapter Factory
    - `RPC_URL`: Your RPC endpoint URL
    - `PRIVATE_KEY`: Your private key for deployment (keep secure!)
    - `TIMELOCK_DURATION`: Timelock duration in seconds (set to 0 for immediate execution)
@@ -108,6 +111,9 @@ export CURATOR=0xYourCuratorAddress
 export ALLOCATOR=0xYourAllocatorAddress
 export SENTINEL=0xYourSentinelAddress
 export VAULT_V1=0xTheVaultV1ToUse
+export ADAPTER_REGISTRY=0xYourAdapterRegistryAddress
+export VAULT_V2_FACTORY=0xYourVaultV2FactoryAddress
+export MORPHO_VAULT_V1_ADAPTER_FACTORY=0xYourMorphoVaultV1AdapterFactoryAddress
 export TIMELOCK_DURATION=TimelockDurationInSeconds
 export RPC_URL=https://your-rpc-url.com
 export PRIVATE_KEY=0xYourPrivateKey
@@ -178,6 +184,9 @@ These workflows run automatically on pushes and pull requests, and can also be t
 | `ALLOCATOR` | ✅ | Allocator role address | `0x9abc...` |
 | `SENTINEL` | ❌ | Sentinel role address | `0xdef0...` |
 | `VAULT_V1` | ✅ | VaultV1 address to use | `0x1111...` |
+| `ADAPTER_REGISTRY` | ✅ | Adapter Registry address | `0x3333...` |
+| `VAULT_V2_FACTORY` | ✅ | VaultV2 Factory address | `0x4444...` |
+| `MORPHO_VAULT_V1_ADAPTER_FACTORY` | ✅ | MorphoVaultV1 Adapter Factory address | `0x5555...` |
 | `RPC_URL` | ✅ | RPC endpoint URL | `https://...` |
 | `PRIVATE_KEY` | ✅ | Deployment private key | `0x2222...` |
 | `TIMELOCK_DURATION` | ❌ | Timelock in seconds | `86400` (1 day) |
