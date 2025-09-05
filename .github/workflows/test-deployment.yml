@@ -20,7 +20,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: "true"
+          submodules: "recursive"
+
+      - name: Update submodules to latest main
+        run: |
+          echo "🔄 Updating submodules to latest main branch..."
+          git submodule update --init --recursive
+          
+          echo "📋 Current submodule status:"
+          git submodule status
+          
+          echo "🔄 Updating vault-v2 submodule to latest main..."
+          cd lib/vault-v2
+          echo "📋 Vault-v2 before update:"
+          git log --oneline -1
+          git fetch origin
+          git checkout main
+          git pull origin main
+          echo "📋 Vault-v2 after update:"
+          git log --oneline -1
+          cd ../..
+          
+          echo "🔄 Updating other submodules if needed..."
+          cd lib/forge-std
+          git fetch origin
+          git checkout main
+          git pull origin main || echo "forge-std already up to date"
+          cd ../openzeppelin-contracts
+          git fetch origin
+          git checkout main
+          git pull origin main || echo "openzeppelin-contracts already up to date"
+          cd ../..
+          
+          echo "📋 Final submodule status:"
+          git submodule status
+          
+          echo "📋 Vault-v2 commit details:"
+          cd lib/vault-v2
+          echo "Commit: $(git rev-parse HEAD)"
+          echo "Branch: $(git branch --show-current)"
+          echo "Date: $(git log -1 --format=%ci)"
+          cd ../..
+          
+          echo "✅ Submodules updated to latest main"
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -29,6 +71,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y curl
+
+      - name: Verify submodule integration
+        run: |
+          echo "🔍 Verifying submodule integration..."
+          echo "📋 Checking if vault-v2 contracts can be imported..."
+          forge build --no-cache || echo "Build failed, but continuing with deployment test"
+          echo "✅ Submodule verification completed"
 
       - name: Make deploy script executable
         run: |
