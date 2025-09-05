@@ -5,7 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 import {ERC20Mock as AssetMock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {ERC4626Mock as VaultV1Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC4626Mock.sol";
-import {AdapterRegistryMock} from "../mocks/AdapterRegistryMock.sol";
+import {AdapterRegistryMock} from "../test/mocks/AdapterRegistryMock.sol";
 
 contract DeployMocks is Script {
     function run() external returns (address, address, address) {

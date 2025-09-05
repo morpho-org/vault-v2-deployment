@@ -2,10 +2,14 @@
 // Copyright (c) 2025 Morpho Association
 pragma solidity 0.8.28;
 
-import {IAdapterRegistry} from "vault-v2/interfaces/IAdapterRegistry.sol";
+import "vault-v2/interfaces/IAdapterRegistry.sol";
 
 contract AdapterRegistryMock is IAdapterRegistry {
-    function isInRegistry(address) external pure override returns (bool) {
+    mapping(address => bool) private _registry;
+
+    function isInRegistry(address) external view override returns (bool) {
         return true;
     }
+
+    
 }
