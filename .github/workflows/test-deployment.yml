@@ -38,6 +38,19 @@ jobs:
           git submodule deinit --all -f
           git submodule update --init --recursive --force
           
+          # Initialize nested submodules (vault-v2 has its own submodules)
+          echo "🔄 Initializing nested submodules in vault-v2..."
+          cd lib/vault-v2
+          
+          # Update submodule URLs to use HTTPS instead of SSH for GitHub Actions
+          echo "🔄 Updating submodule URLs to HTTPS..."
+          git config submodule.lib/morpho-blue.url https://github.com/morpho-org/morpho-blue.git
+          git config submodule.lib/metamorpho.url https://github.com/morpho-org/metamorpho.git
+          git config submodule.lib/metamorpho-v1.1.url https://github.com/morpho-org/metamorpho-v1.1.git
+          
+          git submodule update --init --recursive --force
+          cd ../..
+          
           echo "📋 Current submodule status:"
           git submodule status
           
@@ -76,6 +89,12 @@ jobs:
           echo "Expected latest commit from origin/main:"
           git log origin/main --oneline -1
           echo "Current commit matches origin/main: $([ $(git rev-parse HEAD) = $(git rev-parse origin/main) ] && echo 'YES' || echo 'NO')"
+          echo "📋 Checking nested submodules in vault-v2:"
+          git submodule status
+          echo "📋 Checking if morpho-blue exists:"
+          ls -la lib/morpho-blue/src/interfaces/ | head -5 || echo "morpho-blue not found"
+          echo "📋 Checking for IMorpho.sol specifically:"
+          ls -la lib/morpho-blue/src/interfaces/IMorpho.sol || echo "IMorpho.sol not found"
           cd ../..
           
           echo "✅ Submodules updated to latest main"
