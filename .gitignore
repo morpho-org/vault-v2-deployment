@@ -12,3 +12,6 @@ broadcast
 # Addresses
 addresses/31337.json
 addresses/0.json
+
+# Logs
+anvil.log

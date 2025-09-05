@@ -5,9 +5,10 @@ import {Script, console} from "forge-std/Script.sol";
 
 import {ERC20Mock as AssetMock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {ERC4626Mock as VaultV1Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC4626Mock.sol";
+import {AdapterRegistryMock} from "../test/mocks/AdapterRegistryMock.sol";
 
 contract DeployMocks is Script {
-    function run() external returns (address) {
+    function run() external returns (address, address, address) {
         vm.startBroadcast();
 
         address asset = address(new AssetMock());
@@ -16,8 +17,11 @@ contract DeployMocks is Script {
         address vaultV1 = address(new VaultV1Mock(asset));
         console.log("Mock VaultV1", vaultV1);
 
+        address registry = address(new AdapterRegistryMock());
+        console.log("Mock Registry", registry);
+
         vm.stopBroadcast();
 
-        return vaultV1;
+        return (asset, vaultV1, registry);
     }
 }
