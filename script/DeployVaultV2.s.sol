@@ -28,7 +28,17 @@ contract DeployVaultV2 is Script {
         address vaultV2Factory = vm.envAddress("VAULT_V2_FACTORY");
         address morphoVaultV1AdapterFactory = vm.envAddress("MORPHO_VAULT_V1_ADAPTER_FACTORY");
 
-        return runWithArguments(owner, curator, allocator, sentinel, timelockDuration, vaultV1, registry, vaultV2Factory, morphoVaultV1AdapterFactory);
+        return runWithArguments(
+            owner,
+            curator,
+            allocator,
+            sentinel,
+            timelockDuration,
+            vaultV1,
+            registry,
+            vaultV2Factory,
+            morphoVaultV1AdapterFactory
+        );
     }
 
     function runWithArguments(
@@ -42,7 +52,18 @@ contract DeployVaultV2 is Script {
         address vaultV2Factory,
         address morphoVaultV1AdapterFactory
     ) public returns (address) {
-        return runWithArguments(owner, curator, allocator, sentinel, timelockDuration, vaultV1, registry, vaultV2Factory, morphoVaultV1AdapterFactory, bytes32("111"));
+        return runWithArguments(
+            owner,
+            curator,
+            allocator,
+            sentinel,
+            timelockDuration,
+            vaultV1,
+            registry,
+            vaultV2Factory,
+            morphoVaultV1AdapterFactory,
+            bytes32("111")
+        );
     }
 
     function runWithArguments(
@@ -74,7 +95,8 @@ contract DeployVaultV2 is Script {
         console.log("Adapter Registry submission submitted");
 
         // --- Step 4: Deploy the MorphoVaultV1 Adapter ---
-        address morphoVaultV1Adapter = MorphoVaultV1AdapterFactory(morphoVaultV1AdapterFactory).createMorphoVaultV1Adapter(address(vaultV2), address(vaultV1));
+        address morphoVaultV1Adapter = MorphoVaultV1AdapterFactory(morphoVaultV1AdapterFactory)
+            .createMorphoVaultV1Adapter(address(vaultV2), address(vaultV1));
         console.log("MorphoVaultV1Adapter deployed at:", morphoVaultV1Adapter);
 
         // --- Step 5: Submit All Timelocked Actions (+ Allocator Role) ---
@@ -119,22 +141,52 @@ contract DeployVaultV2 is Script {
 
         // -- Step 9: set the timelocks
         if (timelockDuration > 0) {
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setIsAllocator.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setReceiveSharesGate.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setSendSharesGate.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setReceiveAssetsGate.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setSendAssetsGate.selector, timelockDuration)));
+            vaultV2.submit(
+                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setIsAllocator.selector, timelockDuration))
+            );
+            vaultV2.submit(
+                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setReceiveSharesGate.selector, timelockDuration))
+            );
+            vaultV2.submit(
+                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setSendSharesGate.selector, timelockDuration))
+            );
+            vaultV2.submit(
+                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setReceiveAssetsGate.selector, timelockDuration))
+            );
+            vaultV2.submit(
+                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setSendAssetsGate.selector, timelockDuration))
+            );
             vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.addAdapter.selector, timelockDuration)));
             vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setMaxRate.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setPerformanceFee.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setManagementFee.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setPerformanceFeeRecipient.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setManagementFeeRecipient.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.increaseAbsoluteCap.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.increaseRelativeCap.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setForceDeallocatePenalty.selector, timelockDuration)));
+            vaultV2.submit(
+                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setPerformanceFee.selector, timelockDuration))
+            );
+            vaultV2.submit(
+                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setManagementFee.selector, timelockDuration))
+            );
+            vaultV2.submit(
+                abi.encodeCall(
+                    vaultV2.increaseTimelock, (IVaultV2.setPerformanceFeeRecipient.selector, timelockDuration)
+                )
+            );
+            vaultV2.submit(
+                abi.encodeCall(
+                    vaultV2.increaseTimelock, (IVaultV2.setManagementFeeRecipient.selector, timelockDuration)
+                )
+            );
+            vaultV2.submit(
+                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.increaseAbsoluteCap.selector, timelockDuration))
+            );
+            vaultV2.submit(
+                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.increaseRelativeCap.selector, timelockDuration))
+            );
+            vaultV2.submit(
+                abi.encodeCall(
+                    vaultV2.increaseTimelock, (IVaultV2.setForceDeallocatePenalty.selector, timelockDuration)
+                )
+            );
             console.log("Timelock increase submissions submitted");
-            
+
             // Execute the timelock increases
             vaultV2.increaseTimelock(IVaultV2.setIsAllocator.selector, timelockDuration);
             vaultV2.increaseTimelock(IVaultV2.setReceiveSharesGate.selector, timelockDuration);
