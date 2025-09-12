@@ -5,7 +5,6 @@ import {Script, console} from "forge-std/Script.sol";
 
 import {IVaultV2} from "vault-v2/interfaces/IVaultV2.sol";
 import {VaultV2} from "vault-v2/VaultV2.sol";
-import {MorphoVaultV1Adapter} from "vault-v2/adapters/MorphoVaultV1Adapter.sol";
 import {VaultV2Factory} from "vault-v2/VaultV2Factory.sol";
 import {MorphoVaultV1AdapterFactory} from "vault-v2/adapters/MorphoVaultV1AdapterFactory.sol";
 
@@ -62,32 +61,6 @@ contract DeployVaultV2 is Script {
             registry,
             vaultV2Factory,
             morphoVaultV1AdapterFactory,
-            bytes32("111")
-        );
-    }
-
-    function runWithArguments(
-        address owner,
-        address curator,
-        address allocator,
-        address sentinel,
-        uint256 timelockDuration,
-        IVaultV1 vaultV1,
-        address registry,
-        address vaultV2Factory,
-        address morphoVaultV1AdapterFactory,
-        bytes32 salt
-    ) public returns (address) {
-        return runWithArguments(
-            owner,
-            curator,
-            allocator,
-            sentinel,
-            timelockDuration,
-            vaultV1,
-            registry,
-            vaultV2Factory,
-            morphoVaultV1AdapterFactory,
             keccak256(abi.encodePacked(block.timestamp + gasleft())) // unique salt
         );
     }
@@ -104,27 +77,6 @@ contract DeployVaultV2 is Script {
         address morphoVaultV1AdapterFactory,
         bytes32 salt
     ) public returns (address) {
-        // Input validation
-        require(owner != address(0), "Owner cannot be zero address");
-        require(curator != address(0), "Curator cannot be zero address");
-        require(allocator != address(0), "Allocator cannot be zero address");
-        require(address(vaultV1) != address(0), "VaultV1 cannot be zero address");
-        require(registry != address(0), "Registry cannot be zero address");
-        require(vaultV2Factory != address(0), "VaultV2Factory cannot be zero address");
-        require(morphoVaultV1AdapterFactory != address(0), "MorphoVaultV1AdapterFactory cannot be zero address");
-
-        // Validate that addresses are contracts (except sentinel which can be zero)
-        require(address(vaultV1).code.length > 0, "VaultV1 must be a contract");
-        require(registry.code.length > 0, "Registry must be a contract");
-        require(vaultV2Factory.code.length > 0, "VaultV2Factory must be a contract");
-        require(morphoVaultV1AdapterFactory.code.length > 0, "MorphoVaultV1AdapterFactory must be a contract");
-
-        // Validate VaultV1 has the expected interface
-        try vaultV1.asset() returns (address) {
-            // VaultV1 has asset() function, which is good
-        } catch {
-            revert("VaultV1 must implement IERC4626 interface");
-        }
 
         address broadcaster = tx.origin;
 
@@ -138,119 +90,90 @@ contract DeployVaultV2 is Script {
         vaultV2.setCurator(broadcaster);
         console.log("Broadcaster set as Curator");
 
-        // --- Step 3: Set the Adapter Registry ---
-        vaultV2.submit(abi.encodeCall(vaultV2.setAdapterRegistry, (registry)));
-        console.log("Adapter Registry submission submitted");
-
         // --- Step 4: Deploy the MorphoVaultV1 Adapter ---
         address morphoVaultV1Adapter = MorphoVaultV1AdapterFactory(morphoVaultV1AdapterFactory)
             .createMorphoVaultV1Adapter(address(vaultV2), address(vaultV1));
         console.log("MorphoVaultV1Adapter deployed at:", morphoVaultV1Adapter);
 
-        // --- Step 5: Submit All Timelocked Actions (+ Allocator Role) ---
-        bytes memory idData = abi.encode("this", morphoVaultV1Adapter);
+        // --- Step 5: Submit All Timelocked Actions ---
+
+        // 5.1 Allocators role
         vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (broadcaster, true)));
         if (broadcaster != allocator) {
             vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (broadcaster, false)));
             vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (allocator, true)));
         }
+
+        // 5.2 Registry
+        vaultV2.submit(abi.encodeCall(vaultV2.setAdapterRegistry, (registry)));
+
+        // 5.3 Adapter
+        vaultV2.submit(abi.encodeCall(vaultV2.setLiquidityAdapterAndData, (morphoVaultV1Adapter, bytes(""))));
+
+        // 5.4 Caps
+        bytes memory idData = abi.encode("this", morphoVaultV1Adapter);
         vaultV2.submit(abi.encodeCall(vaultV2.addAdapter, (morphoVaultV1Adapter)));
         vaultV2.submit(abi.encodeCall(vaultV2.increaseAbsoluteCap, (idData, type(uint128).max)));
         vaultV2.submit(abi.encodeCall(vaultV2.increaseRelativeCap, (idData, 1e18)));
 
         console.log("All timelocked actions submitted");
 
-        // Functions have timelock[selector] = 0 by default, so should be executable immediately after submit
-        // Execute the submitted actions with the exact same data
+        // --- Step 6: Execute the submitted actions ---
+
+        // 6.1 Registry
         vaultV2.setAdapterRegistry(registry);
+
+        // 6.2 Allocators role
         vaultV2.setIsAllocator(broadcaster, true);
+
+        // 6.3 Adapter
+        vaultV2.addAdapter(morphoVaultV1Adapter);
+        vaultV2.setLiquidityAdapterAndData(morphoVaultV1Adapter, bytes(""));
+
+        // 6.4 Caps
+        vaultV2.increaseAbsoluteCap(idData, type(uint128).max);
+        vaultV2.increaseRelativeCap(idData, 1e18);
+        
+        // 6.5 Allocators role
         if (broadcaster != allocator) {
             vaultV2.setIsAllocator(broadcaster, false);
             vaultV2.setIsAllocator(allocator, true);
         }
-        vaultV2.addAdapter(morphoVaultV1Adapter);
-        vaultV2.increaseAbsoluteCap(idData, type(uint128).max);
-        vaultV2.increaseRelativeCap(idData, 1e18);
-
-        // --- Step 7: Set the Liquidity Market ---
-        // This needs to be called by the allocator
-        vm.stopBroadcast();
-        vm.startBroadcast(allocator);
-        vaultV2.setLiquidityAdapterAndData(morphoVaultV1Adapter, bytes(""));
-        console.log("Liquidity market set");
-        vm.stopBroadcast();
-        vm.startBroadcast();
-
-        // -- Step 8: remove allocator role before setting TL ---
-        // Note: This will be handled through the timelock system
-        // if (broadcaster != allocator) {
-        //     vaultV2.setIsAllocator(broadcaster, false);
-        // }
 
         // -- Step 9: set the timelocks
         if (timelockDuration > 0) {
-            vaultV2.submit(
-                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setIsAllocator.selector, timelockDuration))
-            );
-            vaultV2.submit(
-                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setReceiveSharesGate.selector, timelockDuration))
-            );
-            vaultV2.submit(
-                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setSendSharesGate.selector, timelockDuration))
-            );
-            vaultV2.submit(
-                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setReceiveAssetsGate.selector, timelockDuration))
-            );
-            vaultV2.submit(
-                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setSendAssetsGate.selector, timelockDuration))
-            );
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.addAdapter.selector, timelockDuration)));
-            vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setMaxRate.selector, timelockDuration)));
-            vaultV2.submit(
-                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setPerformanceFee.selector, timelockDuration))
-            );
-            vaultV2.submit(
-                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.setManagementFee.selector, timelockDuration))
-            );
-            vaultV2.submit(
-                abi.encodeCall(
-                    vaultV2.increaseTimelock, (IVaultV2.setPerformanceFeeRecipient.selector, timelockDuration)
-                )
-            );
-            vaultV2.submit(
-                abi.encodeCall(
-                    vaultV2.increaseTimelock, (IVaultV2.setManagementFeeRecipient.selector, timelockDuration)
-                )
-            );
-            vaultV2.submit(
-                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.increaseAbsoluteCap.selector, timelockDuration))
-            );
-            vaultV2.submit(
-                abi.encodeCall(vaultV2.increaseTimelock, (IVaultV2.increaseRelativeCap.selector, timelockDuration))
-            );
-            vaultV2.submit(
-                abi.encodeCall(
-                    vaultV2.increaseTimelock, (IVaultV2.setForceDeallocatePenalty.selector, timelockDuration)
-                )
-            );
-            console.log("Timelock increase submissions submitted");
+            // List of function selectors to set timelock for
+            bytes4[] memory selectors = new bytes4[](15);
+            selectors[0] = IVaultV2.setIsAllocator.selector;
+            selectors[1] = IVaultV2.setReceiveSharesGate.selector;
+            selectors[2] = IVaultV2.setSendSharesGate.selector;
+            selectors[3] = IVaultV2.setReceiveAssetsGate.selector;
+            selectors[4] = IVaultV2.setSendAssetsGate.selector;
+            selectors[5] = IVaultV2.addAdapter.selector;
+            selectors[6] = IVaultV2.setPerformanceFee.selector;
+            selectors[7] = IVaultV2.setManagementFee.selector;
+            selectors[8] = IVaultV2.setPerformanceFeeRecipient.selector;
+            selectors[9] = IVaultV2.setManagementFeeRecipient.selector;
+            selectors[10] = IVaultV2.increaseAbsoluteCap.selector;
+            selectors[11] = IVaultV2.increaseRelativeCap.selector;
+            selectors[12] = IVaultV2.setForceDeallocatePenalty.selector;
+            selectors[13] = IVaultV2.setAdapterRegistry.selector;
+            selectors[14] = IVaultV2.removeAdapter.selector;
+            
 
-            // Execute the timelock increases
-            vaultV2.increaseTimelock(IVaultV2.setIsAllocator.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setReceiveSharesGate.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setSendSharesGate.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setReceiveAssetsGate.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setSendAssetsGate.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.addAdapter.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setMaxRate.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setPerformanceFee.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setManagementFee.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setPerformanceFeeRecipient.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setManagementFeeRecipient.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.increaseAbsoluteCap.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.increaseRelativeCap.selector, timelockDuration);
-            vaultV2.increaseTimelock(IVaultV2.setForceDeallocatePenalty.selector, timelockDuration);
-            console.log("Allocator timelocks increased");
+            // Submit timelock increases for all selectors
+            for (uint256 i = 0; i < selectors.length; i++) {
+                vaultV2.submit(
+                    abi.encodeCall(vaultV2.increaseTimelock, (selectors[i], timelockDuration))
+                );
+            }
+            console.log("All timelock increases submitted");
+
+            // Execute the timelock increases for all selectors
+            for (uint256 i = 0; i < selectors.length; i++) {
+                vaultV2.increaseTimelock(selectors[i], timelockDuration);
+            }
+            console.log("All timelock increases executed");
         }
 
         // --- Step 10: Set the Roles ---
