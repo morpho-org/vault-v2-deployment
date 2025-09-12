@@ -112,7 +112,7 @@ print_status "Deploying mocks and factories..."
 
 # Deploy mocks first
 print_status "Deploying mocks..."
-if ! MOCKS_OUTPUT=$(forge script script/DeployMocks.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 2>&1); then
+if ! MOCKS_OUTPUT=$(forge script test/script/DeployMocks.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 2>&1); then
     print_error "Mocks deployment failed"
     echo "MOCKS_OUTPUT:"
     echo "$MOCKS_OUTPUT"
@@ -138,7 +138,7 @@ print_status "  Registry: $REGISTRY"
 
 # Deploy factories
 print_status "Deploying factories..."
-if ! FACTORIES_OUTPUT=$(forge script script/DeployFactories.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 2>&1); then
+if ! FACTORIES_OUTPUT=$(forge script test/script/DeployFactories.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 2>&1); then
     print_error "Factories deployment failed"
     echo "FACTORIES_OUTPUT:"
     echo "$FACTORIES_OUTPUT"

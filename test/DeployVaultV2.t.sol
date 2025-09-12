@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.28;
 
-import {console, Test} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
-import {DeployMocks} from "../script/DeployMocks.s.sol";
-import {DeployFactories} from "../script/DeployFactories.s.sol";
+import {DeployMocks} from "./script/DeployMocks.s.sol";
+import {DeployFactories} from "./script/DeployFactories.s.sol";
 import {DeployVaultV2} from "script/DeployVaultV2.s.sol";
 
 import {IVaultV2} from "vault-v2/interfaces/IVaultV2.sol";
@@ -13,7 +13,7 @@ import {IERC4626 as IVaultV1} from "openzeppelin-contracts/contracts/interfaces/
 import {ERC20Mock as AssetMock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
 contract newAdapter {
-    function realAssets() external view returns (uint256 assets) {
+    function realAssets() external pure returns (uint256 assets) {
         return 100 ether;
     }
 }
@@ -56,7 +56,24 @@ contract DeployTest is Test {
                 morphoVaultV1AdapterFactory
             )
         );
+        
     }
+
+    function test_newVaultV2() public {
+        new DeployVaultV2().runWithArguments(
+                owner,
+                curator,
+                allocator,
+                sentinel,
+                timelockDuration,
+                vaultV1,
+                registry,
+                vaultV2Factory,
+                morphoVaultV1AdapterFactory
+            );
+            assertEq(vaultV2.owner(), owner);
+    }
+
 
     function test_DeployWithSameAddress() public {
         address broadcaster = 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38;
