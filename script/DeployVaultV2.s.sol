@@ -145,7 +145,7 @@ contract DeployVaultV2 is Script {
         // -- Step 9: set the timelocks
         if (timelockDuration > 0) {
             // List of function selectors to set timelock for
-            bytes4[] memory selectors = new bytes4[](9);
+            bytes4[] memory selectors = new bytes4[](10);
             selectors[0] = IVaultV2.setReceiveSharesGate.selector;
             selectors[1] = IVaultV2.setSendSharesGate.selector;
             selectors[2] = IVaultV2.setReceiveAssetsGate.selector;
@@ -154,7 +154,8 @@ contract DeployVaultV2 is Script {
             selectors[5] = IVaultV2.increaseRelativeCap.selector;
             selectors[6] = IVaultV2.setForceDeallocatePenalty.selector;
             selectors[7] = IVaultV2.abdicate.selector;
-            selectors[8] = IVaultV2.increaseTimelock.selector;
+            selectors[8] = IVaultV2.removeAdapter.selector;
+            selectors[9] = IVaultV2.increaseTimelock.selector;
 
             // Submit timelock increases for all selectors
             for (uint256 i = 0; i < selectors.length; i++) {
