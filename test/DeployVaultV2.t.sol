@@ -56,24 +56,22 @@ contract DeployTest is Test {
                 morphoVaultV1AdapterFactory
             )
         );
-        
     }
 
     function test_newVaultV2() public {
         new DeployVaultV2().runWithArguments(
-                owner,
-                curator,
-                allocator,
-                sentinel,
-                timelockDuration,
-                vaultV1,
-                registry,
-                vaultV2Factory,
-                morphoVaultV1AdapterFactory
-            );
-            assertEq(vaultV2.owner(), owner);
+            owner,
+            curator,
+            allocator,
+            sentinel,
+            timelockDuration,
+            vaultV1,
+            registry,
+            vaultV2Factory,
+            morphoVaultV1AdapterFactory
+        );
+        assertEq(vaultV2.owner(), owner);
     }
-
 
     function test_DeployWithSameAddress() public {
         address broadcaster = 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38;

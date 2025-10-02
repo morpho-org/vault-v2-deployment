@@ -77,7 +77,6 @@ contract DeployVaultV2 is Script {
         address morphoVaultV1AdapterFactory,
         bytes32 salt
     ) public returns (address) {
-
         address broadcaster = tx.origin;
 
         vm.startBroadcast();
@@ -133,39 +132,33 @@ contract DeployVaultV2 is Script {
         // 6.4 Caps
         vaultV2.increaseAbsoluteCap(idData, type(uint128).max);
         vaultV2.increaseRelativeCap(idData, 1e18);
-        
+
         // 6.5 Allocators role
         if (broadcaster != allocator) {
             vaultV2.setIsAllocator(broadcaster, false);
             vaultV2.setIsAllocator(allocator, true);
         }
 
+        vaultV2.submit(abi.encodeCall(vaultV2.abdicate, (IVaultV2.setAdapterRegistry.selector)));
+        vaultV2.abdicate(IVaultV2.setAdapterRegistry.selector);
+
         // -- Step 9: set the timelocks
         if (timelockDuration > 0) {
             // List of function selectors to set timelock for
-            bytes4[] memory selectors = new bytes4[](15);
-            selectors[0] = IVaultV2.setIsAllocator.selector;
-            selectors[1] = IVaultV2.setReceiveSharesGate.selector;
-            selectors[2] = IVaultV2.setSendSharesGate.selector;
-            selectors[3] = IVaultV2.setReceiveAssetsGate.selector;
-            selectors[4] = IVaultV2.setSendAssetsGate.selector;
-            selectors[5] = IVaultV2.addAdapter.selector;
-            selectors[6] = IVaultV2.setPerformanceFee.selector;
-            selectors[7] = IVaultV2.setManagementFee.selector;
-            selectors[8] = IVaultV2.setPerformanceFeeRecipient.selector;
-            selectors[9] = IVaultV2.setManagementFeeRecipient.selector;
-            selectors[10] = IVaultV2.increaseAbsoluteCap.selector;
-            selectors[11] = IVaultV2.increaseRelativeCap.selector;
-            selectors[12] = IVaultV2.setForceDeallocatePenalty.selector;
-            selectors[13] = IVaultV2.setAdapterRegistry.selector;
-            selectors[14] = IVaultV2.removeAdapter.selector;
-            
+            bytes4[] memory selectors = new bytes4[](9);
+            selectors[0] = IVaultV2.setReceiveSharesGate.selector;
+            selectors[1] = IVaultV2.setSendSharesGate.selector;
+            selectors[2] = IVaultV2.setReceiveAssetsGate.selector;
+            selectors[3] = IVaultV2.addAdapter.selector;
+            selectors[4] = IVaultV2.increaseAbsoluteCap.selector;
+            selectors[5] = IVaultV2.increaseRelativeCap.selector;
+            selectors[6] = IVaultV2.setForceDeallocatePenalty.selector;
+            selectors[7] = IVaultV2.abdicate.selector;
+            selectors[8] = IVaultV2.increaseTimelock.selector;
 
             // Submit timelock increases for all selectors
             for (uint256 i = 0; i < selectors.length; i++) {
-                vaultV2.submit(
-                    abi.encodeCall(vaultV2.increaseTimelock, (selectors[i], timelockDuration))
-                );
+                vaultV2.submit(abi.encodeCall(vaultV2.increaseTimelock, (selectors[i], timelockDuration)));
             }
             console.log("All timelock increases submitted");
 
