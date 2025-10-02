@@ -7,7 +7,7 @@ import {IVaultV2} from "vault-v2/interfaces/IVaultV2.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 contract Deposit is Script {
-    function run() external  {
+    function run() external {
         vm.startBroadcast();
         IVaultV2 vaultV2 = IVaultV2(0x6f961243abb36A08A213B1Ecb6B0F67D547fe638);
         IERC20 asset = IERC20(vaultV2.asset());
