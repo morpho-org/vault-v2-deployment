@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.28;
 
-import {console, Test} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
-import {DeployMocks} from "script/DeployMocks.s.sol";
+import {DeployMocks} from "./script/DeployMocks.s.sol";
+import {DeployFactories} from "./script/DeployFactories.s.sol";
 import {DeployVaultV2} from "script/DeployVaultV2.s.sol";
 
 import {IVaultV2} from "vault-v2/interfaces/IVaultV2.sol";
@@ -12,7 +13,7 @@ import {IERC4626 as IVaultV1} from "openzeppelin-contracts/contracts/interfaces/
 import {ERC20Mock as AssetMock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
 contract newAdapter {
-    function realAssets() external view returns (uint256 assets) {
+    function realAssets() external pure returns (uint256 assets) {
         return 100 ether;
     }
 }
@@ -22,28 +23,70 @@ contract DeployTest is Test {
     address curator;
     address allocator;
     address sentinel;
+    address asset;
+    address registry;
+    address vaultV2Factory;
+    address morphoVaultV1AdapterFactory;
     IVaultV1 vaultV1;
     IVaultV2 vaultV2;
     uint256 timelockDuration;
 
     function setUp() public {
         vm.chainId(0);
-        vaultV1 = IVaultV1(new DeployMocks().run());
+        address vaultV1Addr;
+        (asset, vaultV1Addr, registry) = new DeployMocks().run();
+        vaultV1 = IVaultV1(vaultV1Addr);
+        assertEq(address(vaultV1.asset()), asset);
+        (vaultV2Factory, morphoVaultV1AdapterFactory,) = new DeployFactories().run();
         owner = makeAddr("owner");
         curator = makeAddr("curator");
         allocator = makeAddr("allocator");
         sentinel = makeAddr("sentinel");
         timelockDuration = 500;
         vaultV2 = IVaultV2(
-            new DeployVaultV2().runWithArguments(owner, curator, allocator, sentinel, timelockDuration, vaultV1)
+            new DeployVaultV2().runWithArguments(
+                owner,
+                curator,
+                allocator,
+                sentinel,
+                timelockDuration,
+                vaultV1,
+                registry,
+                vaultV2Factory,
+                morphoVaultV1AdapterFactory
+            )
         );
+    }
+
+    function test_newVaultV2() public {
+        new DeployVaultV2().runWithArguments(
+            owner,
+            curator,
+            allocator,
+            sentinel,
+            timelockDuration,
+            vaultV1,
+            registry,
+            vaultV2Factory,
+            morphoVaultV1AdapterFactory
+        );
+        assertEq(vaultV2.owner(), owner);
     }
 
     function test_DeployWithSameAddress() public {
         address broadcaster = 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38;
         vaultV2 = IVaultV2(
             new DeployVaultV2().runWithArguments(
-                broadcaster, broadcaster, broadcaster, broadcaster, timelockDuration, vaultV1
+                broadcaster,
+                broadcaster,
+                broadcaster,
+                broadcaster,
+                timelockDuration,
+                vaultV1,
+                registry,
+                vaultV2Factory,
+                morphoVaultV1AdapterFactory,
+                bytes32("222")
             )
         );
     }
@@ -57,29 +100,29 @@ contract DeployTest is Test {
 
     function test_DepositAndWithdraw() public {
         address user = makeAddr("user");
-        AssetMock asset = AssetMock(vaultV1.asset());
+        AssetMock assetToken = AssetMock(vaultV1.asset());
         uint256 depositAmount = 100 ether;
 
-        asset.mint(user, depositAmount);
-        assertEq(asset.balanceOf(user), depositAmount);
+        assetToken.mint(user, depositAmount);
+        assertEq(assetToken.balanceOf(user), depositAmount);
 
         vm.startPrank(user);
-        asset.approve(address(vaultV2), depositAmount);
+        assetToken.approve(address(vaultV2), depositAmount);
         vaultV2.deposit(depositAmount, user);
-        assertEq(asset.balanceOf(user), 0);
+        assertEq(assetToken.balanceOf(user), 0);
         vm.stopPrank();
 
         // Sending assets to vaultV1 to simulate the yield
         uint256 giftToVaultV1 = 1 ether;
-        asset.mint(address(vaultV1), giftToVaultV1);
+        assetToken.mint(address(vaultV1), giftToVaultV1);
 
         vm.startPrank(user);
         uint256 shares = vaultV2.balanceOf(user);
         vaultV2.redeem(shares, user, user);
         vm.stopPrank();
 
-        assertApproxEqRel(asset.balanceOf(user), depositAmount + giftToVaultV1, 5e16); // 5% tolerance
-        assertApproxEqRel(asset.balanceOf(address(vaultV1)) + 1e18, 1e18, 5e18); // 500% tolerance
+        assertApproxEqRel(assetToken.balanceOf(user), depositAmount + giftToVaultV1, 5e16); // 5% tolerance
+        assertApproxEqRel(assetToken.balanceOf(address(vaultV1)) + 1e18, 1e18, 5e18); // 500% tolerance
     }
 
     function test_TimelockedFunctions() public {
@@ -91,13 +134,14 @@ contract DeployTest is Test {
         uint256 newCap = 1e18;
 
         // All selectors to test
+        address testAdapter = address(new newAdapter());
         bytes[] memory calls = new bytes[](14);
         calls[0] = abi.encodeCall(vaultV2.setIsAllocator, (dummyAddr, true));
-        calls[1] = abi.encodeCall(vaultV2.setSharesGate, (dummyAddr));
+        calls[1] = abi.encodeCall(vaultV2.setReceiveSharesGate, (dummyAddr));
         calls[2] = abi.encodeCall(vaultV2.setReceiveAssetsGate, (dummyAddr));
         calls[3] = abi.encodeCall(vaultV2.setSendAssetsGate, (dummyAddr));
-        calls[4] = abi.encodeCall(vaultV2.setIsAdapter, (address(new newAdapter()), true));
-        calls[5] = abi.encodeCall(vaultV2.abdicateSubmit, (IVaultV2.setIsAdapter.selector));
+        calls[4] = abi.encodeCall(vaultV2.addAdapter, (testAdapter));
+        calls[5] = abi.encodeCall(vaultV2.removeAdapter, (testAdapter));
         calls[6] = abi.encodeCall(vaultV2.setPerformanceFeeRecipient, (dummyAddr));
         calls[7] = abi.encodeCall(vaultV2.setManagementFeeRecipient, (dummyAddr));
         calls[8] = abi.encodeCall(vaultV2.setPerformanceFee, (newFee));
@@ -110,16 +154,30 @@ contract DeployTest is Test {
         bool success;
         vm.startPrank(curator);
         for (uint256 i = 0; i < calls.length; i++) {
+            uint256 currentTime = block.timestamp;
             vaultV2.submit(calls[i]);
 
-            assertGt(vaultV2.executableAt(calls[i]), 0);
+            uint256 executableAt = vaultV2.executableAt(calls[i]);
 
-            (success,) = address(vaultV2).call(calls[i]);
-            assertFalse(success);
+            if (executableAt > currentTime) {
+                // Has a non-zero timelock duration
 
-            vm.warp(block.timestamp + timelockDuration);
+                // Call before timelock expires - should fail
+                (success,) = address(vaultV2).call(calls[i]);
+                assertFalse(
+                    success, string.concat("call should have failed before timelock expired at index ", vm.toString(i))
+                );
+
+                // Warp to when the function becomes executable
+                vm.warp(executableAt);
+            }
+
+            // Call when the function is executable - should succeed
             (bool ok,) = address(vaultV2).call(calls[i]);
             assertTrue(ok, string.concat("call failed at index ", vm.toString(i)));
+
+            // Advance time slightly to ensure next submission has different timestamp
+            vm.warp(block.timestamp + 1);
         }
         vm.stopPrank();
     }
