@@ -122,7 +122,7 @@ contract DeployTest is Test {
         vm.stopPrank();
 
         assertApproxEqRel(assetToken.balanceOf(user), depositAmount + giftToVaultV1, 5e16); // 5% tolerance
-        assertApproxEqRel(assetToken.balanceOf(address(vaultV1)) + 1e18, 1e18, 5e18); // 500% tolerance
+        assertApproxEqRel(assetToken.balanceOf(address(vaultV1)) + 1e18, 1e18, 1e15); // 0.1% tolerance
     }
 
     function test_TimelockedFunctions() public {

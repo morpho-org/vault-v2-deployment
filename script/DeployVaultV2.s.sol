@@ -77,6 +77,28 @@ contract DeployVaultV2 is Script {
         address morphoVaultV1AdapterFactory,
         bytes32 salt
     ) public returns (address) {
+        // Input validation
+        require(owner != address(0), "Owner cannot be zero address");
+        require(curator != address(0), "Curator cannot be zero address");
+        require(allocator != address(0), "Allocator cannot be zero address");
+        require(address(vaultV1) != address(0), "VaultV1 cannot be zero address");
+        require(registry != address(0), "Registry cannot be zero address");
+        require(vaultV2Factory != address(0), "VaultV2Factory cannot be zero address");
+        require(morphoVaultV1AdapterFactory != address(0), "MorphoVaultV1AdapterFactory cannot be zero address");
+        
+        // Validate that addresses are contracts (except sentinel which can be zero)
+        require(address(vaultV1).code.length > 0, "VaultV1 must be a contract");
+        require(registry.code.length > 0, "Registry must be a contract");
+        require(vaultV2Factory.code.length > 0, "VaultV2Factory must be a contract");
+        require(morphoVaultV1AdapterFactory.code.length > 0, "MorphoVaultV1AdapterFactory must be a contract");
+        
+        // Validate VaultV1 has the expected interface
+        try vaultV1.asset() returns (address) {
+            // VaultV1 has asset() function, which is good
+        } catch {
+            revert("VaultV1 must implement IERC4626 interface");
+        }
+
         address broadcaster = tx.origin;
 
         vm.startBroadcast();
@@ -89,27 +111,27 @@ contract DeployVaultV2 is Script {
         vaultV2.setCurator(broadcaster);
         console.log("Broadcaster set as Curator");
 
-        // --- Step 4: Deploy the MorphoVaultV1 Adapter ---
+        // --- Step 3: Deploy the MorphoVaultV1 Adapter ---
         address morphoVaultV1Adapter = MorphoVaultV1AdapterFactory(morphoVaultV1AdapterFactory)
             .createMorphoVaultV1Adapter(address(vaultV2), address(vaultV1));
         console.log("MorphoVaultV1Adapter deployed at:", morphoVaultV1Adapter);
 
-        // --- Step 5: Submit All Timelocked Actions ---
+        // --- Step 4: Submit All Timelocked Actions ---
 
-        // 5.1 Allocators role
+        // 4.1 Allocators role
         vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (broadcaster, true)));
         if (broadcaster != allocator) {
             vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (broadcaster, false)));
             vaultV2.submit(abi.encodeCall(vaultV2.setIsAllocator, (allocator, true)));
         }
 
-        // 5.2 Registry
+        // 4.2 Registry
         vaultV2.submit(abi.encodeCall(vaultV2.setAdapterRegistry, (registry)));
 
-        // 5.3 Adapter
+        // 4.3 Adapter
         vaultV2.submit(abi.encodeCall(vaultV2.setLiquidityAdapterAndData, (morphoVaultV1Adapter, bytes(""))));
 
-        // 5.4 Caps
+        // 4.4 Caps
         bytes memory idData = abi.encode("this", morphoVaultV1Adapter);
         vaultV2.submit(abi.encodeCall(vaultV2.addAdapter, (morphoVaultV1Adapter)));
         vaultV2.submit(abi.encodeCall(vaultV2.increaseAbsoluteCap, (idData, type(uint128).max)));
@@ -117,23 +139,23 @@ contract DeployVaultV2 is Script {
 
         console.log("All timelocked actions submitted");
 
-        // --- Step 6: Execute the submitted actions ---
+        // --- Step 5: Execute the submitted actions ---
 
-        // 6.1 Registry
+        // 5.1 Registry
         vaultV2.setAdapterRegistry(registry);
 
-        // 6.2 Allocators role
+        // 5.2 Allocators role
         vaultV2.setIsAllocator(broadcaster, true);
 
-        // 6.3 Adapter
+        // 5.3 Adapter
         vaultV2.addAdapter(morphoVaultV1Adapter);
         vaultV2.setLiquidityAdapterAndData(morphoVaultV1Adapter, bytes(""));
 
-        // 6.4 Caps
+        // 5.4 Caps
         vaultV2.increaseAbsoluteCap(idData, type(uint128).max);
         vaultV2.increaseRelativeCap(idData, 1e18);
 
-        // 6.5 Allocators role
+        // 5.5 Allocators role
         if (broadcaster != allocator) {
             vaultV2.setIsAllocator(broadcaster, false);
             vaultV2.setIsAllocator(allocator, true);
@@ -142,7 +164,7 @@ contract DeployVaultV2 is Script {
         vaultV2.submit(abi.encodeCall(vaultV2.abdicate, (IVaultV2.setAdapterRegistry.selector)));
         vaultV2.abdicate(IVaultV2.setAdapterRegistry.selector);
 
-        // -- Step 9: set the timelocks
+        // -- Step 6: set the timelocks
         if (timelockDuration > 0) {
             // List of function selectors to set timelock for
             bytes4[] memory selectors = new bytes4[](9);
@@ -169,7 +191,7 @@ contract DeployVaultV2 is Script {
             console.log("All timelock increases executed");
         }
 
-        // --- Step 10: Set the Roles ---
+        // --- Step 7: Set the Roles ---
         vaultV2.setCurator(curator);
         if (sentinel != address(0)) {
             vaultV2.setIsSentinel(sentinel, true);
