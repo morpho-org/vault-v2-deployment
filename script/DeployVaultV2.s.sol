@@ -85,13 +85,13 @@ contract DeployVaultV2 is Script {
         require(registry != address(0), "Registry cannot be zero address");
         require(vaultV2Factory != address(0), "VaultV2Factory cannot be zero address");
         require(morphoVaultV1AdapterFactory != address(0), "MorphoVaultV1AdapterFactory cannot be zero address");
-        
+
         // Validate that addresses are contracts (except sentinel which can be zero)
         require(address(vaultV1).code.length > 0, "VaultV1 must be a contract");
         require(registry.code.length > 0, "Registry must be a contract");
         require(vaultV2Factory.code.length > 0, "VaultV2Factory must be a contract");
         require(morphoVaultV1AdapterFactory.code.length > 0, "MorphoVaultV1AdapterFactory must be a contract");
-        
+
         // Validate VaultV1 has the expected interface
         try vaultV1.asset() returns (address) {
             // VaultV1 has asset() function, which is good
