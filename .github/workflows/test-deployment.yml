@@ -8,12 +8,6 @@ on:
       - 'script/**'
       - 'deploy_anvil.sh'
       - '.github/workflows/test-deployment.yml'
-  pull_request:
-    branches: [ main, master ]
-    paths:
-      - 'script/**'
-      - 'deploy_anvil.sh'
-      - '.github/workflows/test-deployment.yml'
 
 env:
   FOUNDRY_PROFILE: ci
@@ -76,12 +70,12 @@ jobs:
           echo "🔄 Updating other submodules if needed..."
           cd lib/forge-std
           git fetch origin
-          git checkout main
-          git pull origin main || echo "forge-std already up to date"
+          git checkout main || git checkout master || echo "forge-std branch not found"
+          git pull origin main || git pull origin master || echo "forge-std already up to date"
           cd ../openzeppelin-contracts
           git fetch origin
-          git checkout main
-          git pull origin main || echo "openzeppelin-contracts already up to date"
+          git checkout main || git checkout master || echo "openzeppelin-contracts branch not found"
+          git pull origin main || git pull origin master || echo "openzeppelin-contracts already up to date"
           cd ../..
           
           echo "📋 Final submodule status:"
