@@ -151,7 +151,7 @@ contract DeployVaultV2 is Script {
 
         // Phase 8: Execute dead deposit if specified
         if (config.initialDeadDepositAmount > 0) {
-            _executeDeadDeposit(deployedVaultV2, config.sourceVaultV1, config.initialDeadDepositAmount);
+            _executeDeadDeposit(deployedVaultV2, config.initialDeadDepositAmount);
         }
 
         vm.stopBroadcast();
@@ -346,23 +346,10 @@ contract DeployVaultV2 is Script {
     /**
      * @notice Execute dead deposit to seed the vault with initial liquidity
      * @param vault The VaultV2 instance
-     * @param sourceVault The source VaultV1 instance
      * @param depositAmount Amount to deposit as dead deposit
      */
-    function _executeDeadDeposit(VaultV2 vault, IVaultV1 sourceVault, uint256 depositAmount) internal {
-        IERC20 underlyingAsset = IERC20(sourceVault.asset());
-
-        // For mock tokens in test environment, mint the required assets
-        if (address(underlyingAsset).code.length > 0) {
-            try ERC20Mock(address(underlyingAsset)).mint(address(this), depositAmount) {
-                underlyingAsset.approve(address(vault), depositAmount);
-                vault.deposit(depositAmount, address(0xdead)); // Dead address for burned shares
-                console.log("Dead deposit of", depositAmount, "executed successfully");
-            } catch {
-                console.log("Could not execute dead deposit - asset may not be a mock token");
-            }
-        } else {
-            console.log("Asset is not a mock token, skipping dead deposit");
-        }
+    function _executeDeadDeposit(VaultV2 vault, uint256 depositAmount) internal {
+        IERC20(vault.asset()).approve(address(vault), depositAmount);
+        vault.deposit(depositAmount, address(0xdead)); // Dead address for burned shares}
     }
 }
