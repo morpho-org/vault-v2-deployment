@@ -45,7 +45,25 @@ contract DeployTest is Test {
         sentinel = makeAddr("sentinel");
         timelockDuration = 500;
         vaultV2 = IVaultV2(
-            new DeployVaultV2().runWithArguments(
+            new DeployVaultV2()
+                .runWithArguments(
+                    owner,
+                    curator,
+                    allocator,
+                    sentinel,
+                    timelockDuration,
+                    vaultV1,
+                    registry,
+                    vaultV2Factory,
+                    morphoVaultV1AdapterFactory,
+                    0
+                )
+        );
+    }
+
+    function test_newVaultV2() public {
+        new DeployVaultV2()
+            .runWithArguments(
                 owner,
                 curator,
                 allocator,
@@ -56,41 +74,26 @@ contract DeployTest is Test {
                 vaultV2Factory,
                 morphoVaultV1AdapterFactory,
                 0
-            )
-        );
-    }
-
-    function test_newVaultV2() public {
-        new DeployVaultV2().runWithArguments(
-            owner,
-            curator,
-            allocator,
-            sentinel,
-            timelockDuration,
-            vaultV1,
-            registry,
-            vaultV2Factory,
-            morphoVaultV1AdapterFactory,
-            0
-        );
+            );
         assertEq(vaultV2.owner(), owner);
     }
 
     function test_DeployWithSameAddress() public {
         address broadcaster = 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38;
         vaultV2 = IVaultV2(
-            new DeployVaultV2().runWithArguments(
-                broadcaster,
-                broadcaster,
-                broadcaster,
-                broadcaster,
-                timelockDuration,
-                vaultV1,
-                registry,
-                vaultV2Factory,
-                morphoVaultV1AdapterFactory,
-                0
-            )
+            new DeployVaultV2()
+                .runWithArguments(
+                    broadcaster,
+                    broadcaster,
+                    broadcaster,
+                    broadcaster,
+                    timelockDuration,
+                    vaultV1,
+                    registry,
+                    vaultV2Factory,
+                    morphoVaultV1AdapterFactory,
+                    0
+                )
         );
     }
 
@@ -194,18 +197,19 @@ contract DeployTest is Test {
 
         // Deploy a new vault with dead deposit
         IVaultV2 vaultWithDeadDeposit = IVaultV2(
-            new DeployVaultV2().runWithArguments(
-                owner,
-                curator,
-                allocator,
-                sentinel,
-                timelockDuration,
-                vaultV1,
-                registry,
-                vaultV2Factory,
-                morphoVaultV1AdapterFactory,
-                deadDepositAmount
-            )
+            new DeployVaultV2()
+                .runWithArguments(
+                    owner,
+                    curator,
+                    allocator,
+                    sentinel,
+                    timelockDuration,
+                    vaultV1,
+                    registry,
+                    vaultV2Factory,
+                    morphoVaultV1AdapterFactory,
+                    deadDepositAmount
+                )
         );
 
         // Check that the dead deposit was made (vault should have shares)
