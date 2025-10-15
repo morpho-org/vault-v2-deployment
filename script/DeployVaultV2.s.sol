@@ -7,7 +7,8 @@ import {IVaultV2} from "vault-v2/interfaces/IVaultV2.sol";
 import {VaultV2} from "vault-v2/VaultV2.sol";
 import {VaultV2Factory} from "vault-v2/VaultV2Factory.sol";
 import {MorphoVaultV1AdapterFactory} from "vault-v2/adapters/MorphoVaultV1AdapterFactory.sol";
-
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {IERC4626 as IVaultV1} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 contract DeployVaultV2 is Script {
@@ -27,30 +28,9 @@ contract DeployVaultV2 is Script {
         address vaultV2Factory = vm.envAddress("VAULT_V2_FACTORY");
         address morphoVaultV1AdapterFactory = vm.envAddress("MORPHO_VAULT_V1_ADAPTER_FACTORY");
 
-        return runWithArguments(
-            owner,
-            curator,
-            allocator,
-            sentinel,
-            timelockDuration,
-            vaultV1,
-            registry,
-            vaultV2Factory,
-            morphoVaultV1AdapterFactory
-        );
-    }
+        // --- Dead Deposit
+        uint256 deadDepositAmount = vm.envExists("DEAD_DEPOSIT_AMOUNT") ? vm.envUint("DEAD_DEPOSIT_AMOUNT") : 0;
 
-    function runWithArguments(
-        address owner,
-        address curator,
-        address allocator,
-        address sentinel,
-        uint256 timelockDuration,
-        IVaultV1 vaultV1,
-        address registry,
-        address vaultV2Factory,
-        address morphoVaultV1AdapterFactory
-    ) public returns (address) {
         return runWithArguments(
             owner,
             curator,
@@ -61,7 +41,7 @@ contract DeployVaultV2 is Script {
             registry,
             vaultV2Factory,
             morphoVaultV1AdapterFactory,
-            keccak256(abi.encodePacked(block.timestamp + gasleft())) // unique salt
+            deadDepositAmount
         );
     }
 
@@ -75,14 +55,18 @@ contract DeployVaultV2 is Script {
         address registry,
         address vaultV2Factory,
         address morphoVaultV1AdapterFactory,
-        bytes32 salt
+        uint256 deadDepositAmount
     ) public returns (address) {
         address broadcaster = tx.origin;
 
         vm.startBroadcast();
 
         // --- Step 1: Deploy the VaultV2 Instance, with the broadcaster as temporary owner ---
-        VaultV2 vaultV2 = VaultV2(VaultV2Factory(vaultV2Factory).createVaultV2(broadcaster, vaultV1.asset(), salt));
+        VaultV2 vaultV2 = VaultV2(
+            VaultV2Factory(vaultV2Factory).createVaultV2(
+                broadcaster, vaultV1.asset(), keccak256(abi.encodePacked(block.timestamp + gasleft()))
+            )
+        ); // unique salt
         console.log("VaultV2 deployed at:", address(vaultV2));
 
         // --- Step 2: Temporary grant Curator role to the broadcaster ---
@@ -177,6 +161,15 @@ contract DeployVaultV2 is Script {
         }
         vaultV2.setOwner(owner);
         console.log("All roles set");
+
+        // --- Step 11: Deposit the dead deposit ---
+        if (deadDepositAmount > 0) {
+            IERC20(vaultV1.asset()).approve(address(vaultV2), deadDepositAmount);
+            vaultV2.deposit(deadDepositAmount, address(0xdead));
+            console.log("Dead deposit deposited");
+        } else {
+            console.log("No dead deposit provided, skipping deposit");
+        }
 
         vm.stopBroadcast();
         return address(vaultV2);

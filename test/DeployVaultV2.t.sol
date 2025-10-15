@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.28;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
+import {CommonBase} from "forge-std/Base.sol";
 
 import {DeployMocks} from "./script/DeployMocks.s.sol";
 import {DeployFactories} from "./script/DeployFactories.s.sol";
@@ -53,7 +54,8 @@ contract DeployTest is Test {
                 vaultV1,
                 registry,
                 vaultV2Factory,
-                morphoVaultV1AdapterFactory
+                morphoVaultV1AdapterFactory,
+                0
             )
         );
     }
@@ -68,7 +70,8 @@ contract DeployTest is Test {
             vaultV1,
             registry,
             vaultV2Factory,
-            morphoVaultV1AdapterFactory
+            morphoVaultV1AdapterFactory,
+            0
         );
         assertEq(vaultV2.owner(), owner);
     }
@@ -86,7 +89,7 @@ contract DeployTest is Test {
                 registry,
                 vaultV2Factory,
                 morphoVaultV1AdapterFactory,
-                bytes32("222")
+                0
             )
         );
     }
@@ -180,5 +183,47 @@ contract DeployTest is Test {
             vm.warp(block.timestamp + 1);
         }
         vm.stopPrank();
+    }
+
+    function test_DeadDeposit() public {
+        uint256 deadDepositAmount = 10 ether;
+
+        AssetMock(vaultV1.asset()).mint(CommonBase.DEFAULT_SENDER, deadDepositAmount);
+
+        console.log("Test dead deposit amount:", deadDepositAmount);
+
+        // Deploy a new vault with dead deposit
+        IVaultV2 vaultWithDeadDeposit = IVaultV2(
+            new DeployVaultV2().runWithArguments(
+                owner,
+                curator,
+                allocator,
+                sentinel,
+                timelockDuration,
+                vaultV1,
+                registry,
+                vaultV2Factory,
+                morphoVaultV1AdapterFactory,
+                deadDepositAmount
+            )
+        );
+
+        // Check that the dead deposit was made (vault should have shares)
+        uint256 totalSupply = vaultWithDeadDeposit.totalSupply();
+        assertGt(totalSupply, 0, "Dead deposit should create shares");
+
+        // Check that the vault has the expected amount of assets
+        uint256 vaultAssets = vaultWithDeadDeposit.totalAssets();
+        assertApproxEqRel(
+            vaultAssets, deadDepositAmount, 1e15, "Vault should have approximately the dead deposit amount"
+        );
+
+        // Verify that the dead deposit shares belong to address(0) (burned shares)
+        // Since shares are burned, they shouldn't be transferable and totalSupply should reflect this
+        assertEq(
+            vaultWithDeadDeposit.balanceOf(address(0)),
+            0,
+            "Dead deposit shares should be burned (address(0) has no balance)"
+        );
     }
 }
