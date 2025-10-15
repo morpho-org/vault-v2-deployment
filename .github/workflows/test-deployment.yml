@@ -8,6 +8,12 @@ on:
       - 'script/**'
       - 'deploy_anvil.sh'
       - '.github/workflows/test-deployment.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'script/**'
+      - 'deploy_anvil.sh'
+      - '.github/workflows/test-deployment.yml'
 
 env:
   FOUNDRY_PROFILE: ci
