@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-  pull_request:
-  workflow_dispatch:
 
 env:
   FOUNDRY_PROFILE: ci
@@ -38,4 +36,11 @@ jobs:
       - name: Run Forge tests
         run: |
           forge test -vvv
-        id: test
+        id: forge-test
+
+      - name: Run VaultV2 deployment test on Anvil
+        run: |
+          echo "🧪 Starting VaultV2 deployment test on Anvil..."
+          ./deploy_anvil.sh
+          echo "✅ VaultV2 deployment test completed successfully!"
+        id: anvil-deployment-test

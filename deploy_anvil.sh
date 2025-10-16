@@ -54,9 +54,15 @@ trap cleanup EXIT
 
 print_status "Starting VaultV2 test deployment process..."
 
-# Step 1: Check if anvil is already running
-if pgrep -f "anvil" > /dev/null; then
-    print_warning "Anvil is already running. Please stop it first or use a different port."
+# Step 1: Check if anvil is already running on port 8545
+if pgrep -f "anvil.*8545" > /dev/null; then
+    print_warning "Anvil is already running on port 8545. Please stop it first or use a different port."
+    exit 1
+fi
+
+# Also check if port 8545 is in use
+if lsof -i :8545 > /dev/null 2>&1; then
+    print_warning "Port 8545 is already in use. Please stop the process using this port or use a different port."
     exit 1
 fi
 
