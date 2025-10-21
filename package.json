@@ -1,0 +1,14 @@
+{
+  "name": "vault-v2-deployment-ts-utils",
+  "version": "1.0.0",
+  "description": "TypeScript utilities for VaultV2 ABI encoding",
+  "scripts": {
+    "encode": "tsx ts/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "viem": "^2.7.0"
+  }
+}

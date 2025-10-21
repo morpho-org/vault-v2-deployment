@@ -3,8 +3,12 @@
 ## Deployed Vault Information
 
 **Network:** Base Mainnet (Chain ID: 8453)
-**Vault Address:** `0x8A7a3Cb46bca02491711275f5C837E23220539b0`
+**Vault Address:** `0x8A7a3Cb46bca02491711275f5C837E23220539b0`  
 **Explorer:** https://basescan.org/address/0x8A7a3Cb46bca02491711275f5C837E23220539b0
+
+**Morpho Market V1 Adapter**: 0x26E2878CD6fC34BBFEBc7A3bD2C3BFd32a3b0600  
+**Morpho Vault V1 Adapter**: 0xAcd4fFdBABDc627e5474FA9d507Db1436CF65Cc7  
+**ERC4626 V1 Adapter (Euler protocol)**: 0x98Cb0aB186F459E65936DB0C0E457F0D7d349c65
 
 ---
 
@@ -102,8 +106,7 @@ This guide provides step-by-step instructions for reproducing each of the 13 Vau
 
 ### Step 2.1: Deallocate All Funds (if any)
 - **Function:** `deallocate(address adapter, bytes marketData, uint256 amount)`
-- **Example TX (Market 1 deallocation):** [0xa32ff40325ddc163b6599df3e236b19ffaf2a5479f2ddf4fca1747a3bf569ba4](https://basescan.org/tx/0xa32ff40325ddc163b6599df3e236b19ffaf2a5479f2ddf4fca1747a3bf569ba4)
-- **Example TX (Market 2 deallocation):** [0x4a4b405f98ca9df2a18a2ad32ab07865dccc5d45a6affe4d60151acb1ea09d34](https://basescan.org/tx/0x4a4b405f98ca9df2a18a2ad32ab07865dccc5d45a6affe4d60151acb1ea09d34)
+- **Example TX [0x8fed33d3eba12d64da19c0c7bb0f1c788273a4b06413ace17e17c0853908d177](https://basescan.org/tx/0x8fed33d3eba12d64da19c0c7bb0f1c788273a4b06413ace17e17c0853908d177)
 
 ### Step 2.2: Decrease Absolute Cap to 0
 - **Function:** `decreaseAbsoluteCap(bytes idData, uint256 newCap)`
@@ -127,7 +130,10 @@ This guide provides step-by-step instructions for reproducing each of the 13 Vau
 
 ## Action 3: Add Protocol
 
-**Purpose:** Add a new protocol (for Morpho, this means adding a new market to the same adapter)
+**Purpose:** Add a new protocol 
+- For Morpho Market adapter, this means adding a new market to the same Morpho maket adapter if already set
+- For Morpho Vault Adapter, this means adding a new adapter
+- For Other protocol Vault adapter, this means adding a new adapter
 
 **Steps Required:**
 

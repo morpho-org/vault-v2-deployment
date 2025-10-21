@@ -444,6 +444,7 @@ contract AllActions is Script {
     /**
      * ACTION 9: Restrict Protocols (via adapter registry)
      */
+
     function action9_RestrictProtocols(Config memory config) internal {
         console.log("--- ACTION 9: Restrict Protocols ---");
         console.log("Setting adapter registry to restrict which adapters can be added");
