@@ -39,6 +39,7 @@ contract AllActions is Script {
     VaultV2 public vault;
     address public adapter; // Single MarketV1 adapter for both markets
     address public vaultV1Adapter; // VaultV1 adapter for liquidity (deposit/withdraw)
+    address public eulerVaultAdapter; // ERC4626 V1 Adapter for Euler vault
     address public tempCuratorAddress = address(0x1234567890123456789012345678901234567890);
 
     /**
@@ -68,6 +69,9 @@ contract AllActions is Script {
 
         // PHASE 4: Emergency & Cleanup
         phase4_EmergencyAndCleanup(config);
+
+        // BONUS: Add ERC4626 V1 Adapter for Euler Vault
+        addEulerVaultAdapter(config);
 
         vm.stopBroadcast();
 
@@ -660,6 +664,49 @@ contract AllActions is Script {
             console.log("[4.2] Cannot remove: allocation not zero");
         }
 
+        console.log("");
+    }
+
+    /**
+     * BONUS: Add ERC4626 V1 Adapter for Euler Vault
+     * Deploy and configure adapter for Euler vault at 0x0A1a3b5f2041F33522C4efc754a7D096f880eE16
+     */
+    function addEulerVaultAdapter(Config memory config) internal {
+        console.log(">>> BONUS: ADD EULER VAULT ADAPTER <<<");
+        console.log("");
+
+        // Euler vault address on Base
+        address eulerVault = 0x0A1a3b5f2041F33522C4efc754a7D096f880eE16;
+
+        console.log("--- Adding ERC4626 V1 Adapter for Euler Vault ---");
+        console.log("Euler Vault:", eulerVault);
+
+        // Step 1: Deploy ERC4626 V1 Adapter using MorphoVaultV1AdapterFactory
+        eulerVaultAdapter = MorphoVaultV1AdapterFactory(config.vaultV1AdapterFactory)
+            .createMorphoVaultV1Adapter(address(vault), eulerVault);
+        console.log("[E.1] Euler vault adapter deployed:", eulerVaultAdapter);
+        _logCalldata(
+            "createMorphoVaultV1Adapter",
+            abi.encodeCall(
+                MorphoVaultV1AdapterFactory.createMorphoVaultV1Adapter, (address(vault), eulerVault)
+            )
+        );
+
+        // Step 2: Add adapter (submit + execute)
+        bytes memory addAdapterData = abi.encodeCall(IVaultV2.addAdapter, (eulerVaultAdapter));
+        vault.submit(addAdapterData);
+        console.log("[E.2] Submitted: addAdapter");
+        _logCalldata("submit(addAdapter)", addAdapterData);
+
+        vault.addAdapter(eulerVaultAdapter);
+        console.log("[E.3] Executed: addAdapter");
+        _logCalldata("addAdapter", abi.encodeCall(IVaultV2.addAdapter, (eulerVaultAdapter)));
+
+        // Step 3: Set caps for Euler adapter
+        bytes memory eulerAdapterIdData = abi.encode("this", eulerVaultAdapter);
+        _setCaps(eulerAdapterIdData, "euler adapter", type(uint128).max, 1e18);
+
+        console.log("[E.4] Euler vault adapter fully configured");
         console.log("");
     }
 

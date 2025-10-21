@@ -540,4 +540,102 @@ export TIMELOCK_DURATION=0 && \
 
 ---
 
+## Adding New ERC4626 V1 Adapter (Euler Vault)
+
+**Purpose:** Deploy and configure a new ERC4626 V1 Adapter for Euler vault at `0x0A1a3b5f2041F33522C4efc754a7D096f880eE16`
+
+**Complete Command to Deploy and Add Adapter:**
+
+```bash
+# Step 1: Deploy the ERC4626 V1 Adapter using the factory
+cast send 0xF42D9c36b34c9c2CF3Bc30eD2a52a90eEB604642 \
+  "createMorphoVaultV1Adapter(address,address)" \
+  0x8A7a3Cb46bca02491711275f5C837E23220539b0 \
+  0x0A1a3b5f2041F33522C4efc754a7D096f880eE16 \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Step 2: Get the deployed adapter address from the transaction receipt
+# Let's assume it deployed at: NEW_ADAPTER_ADDRESS
+
+# Step 3: Submit addAdapter via timelock
+cast send 0x8A7a3Cb46bca02491711275f5C837E23220539b0 \
+  "submit(bytes)" \
+  $(cast calldata "addAdapter(address)" NEW_ADAPTER_ADDRESS) \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Step 4: Execute addAdapter (after timelock period, or immediately if timelock=0)
+cast send 0x8A7a3Cb46bca02491711275f5C837E23220539b0 \
+  "addAdapter(address)" \
+  NEW_ADAPTER_ADDRESS \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Step 5: Submit increase absolute cap for adapter
+cast send 0x8A7a3Cb46bca02491711275f5C837E23220539b0 \
+  "submit(bytes)" \
+  $(cast calldata "increaseAbsoluteCap(bytes,uint256)" \
+    $(cast abi-encode "f(string,address)" "this" NEW_ADAPTER_ADDRESS) \
+    340282366920938463463374607431768211455) \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Step 6: Execute increase absolute cap
+cast send 0x8A7a3Cb46bca02491711275f5C837E23220539b0 \
+  "increaseAbsoluteCap(bytes,uint256)" \
+  $(cast abi-encode "f(string,address)" "this" NEW_ADAPTER_ADDRESS) \
+  340282366920938463463374607431768211455 \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Step 7: Submit increase relative cap for adapter
+cast send 0x8A7a3Cb46bca02491711275f5C837E23220539b0 \
+  "submit(bytes)" \
+  $(cast calldata "increaseRelativeCap(bytes,uint256)" \
+    $(cast abi-encode "f(string,address)" "this" NEW_ADAPTER_ADDRESS) \
+    1000000000000000000) \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Step 8: Execute increase relative cap
+cast send 0x8A7a3Cb46bca02491711275f5C837E23220539b0 \
+  "increaseRelativeCap(bytes,uint256)" \
+  $(cast abi-encode "f(string,address)" "this" NEW_ADAPTER_ADDRESS) \
+  1000000000000000000 \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+```
+
+**Simplified Forge Script Command:**
+
+Alternatively, use this forge script command to deploy the adapter in one transaction:
+
+```bash
+export VAULT_V2=0x8A7a3Cb46bca02491711275f5C837E23220539b0 && \
+export EULER_VAULT=0x0A1a3b5f2041F33522C4efc754a7D096f880eE16 && \
+export MORPHO_VAULT_V1_ADAPTER_FACTORY=0xF42D9c36b34c9c2CF3Bc30eD2a52a90eEB604642 && \
+cast send $MORPHO_VAULT_V1_ADAPTER_FACTORY \
+  "createMorphoVaultV1Adapter(address,address)" \
+  $VAULT_V2 \
+  $EULER_VAULT \
+  --rpc-url https://base-mainnet.g.alchemy.com/v2/YOUR_API_KEY \
+  --private-key $PRIVATE_KEY
+```
+
+**Key Parameters:**
+- **VaultV2 Address:** `0x8A7a3Cb46bca02491711275f5C837E23220539b0`
+- **Euler Vault (ERC4626):** `0x0A1a3b5f2041F33522C4efc754a7D096f880eE16`
+- **VaultV1 Adapter Factory:** `0xF42D9c36b34c9c2CF3Bc30eD2a52a90eEB604642`
+- **Absolute Cap:** `340282366920938463463374607431768211455` (max uint128)
+- **Relative Cap:** `1000000000000000000` (1e18 = 100%)
+
+**Notes:**
+- The ERC4626 V1 Adapter (also called MorphoVaultV1Adapter) can be used with any ERC4626-compliant vault
+- After deployment, the adapter address will be emitted in the transaction receipt
+- Remember to replace `NEW_ADAPTER_ADDRESS` with the actual deployed address from Step 1
+- If timelock > 0, you must wait for the timelock period between submit and execute steps
+
+---
+
 **Network:** Base Mainnet (Chain ID 8453)
