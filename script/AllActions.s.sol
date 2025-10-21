@@ -71,7 +71,7 @@ contract AllActions is Script {
         phase4_EmergencyAndCleanup(config);
 
         // BONUS: Add ERC4626 V1 Adapter for Euler Vault
-        addEulerVaultAdapter(config);
+        // addEulerVaultAdapter(config);
 
         vm.stopBroadcast();
 
