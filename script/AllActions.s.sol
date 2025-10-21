@@ -198,15 +198,19 @@ contract AllActions is Script {
     /**
      * ACTION 1: Add Token to Portfolio (Market 1)
      */
-    function action1_AddTokenToPortfolio(Config memory config, MarketParams memory market, uint256 adapterNum) internal {
+    function action1_AddTokenToPortfolio(Config memory config, MarketParams memory market, uint256 adapterNum)
+        internal
+    {
         console.log("--- ACTION 1: Add Token to Portfolio ---");
 
         // Step 1: Deploy adapter (one adapter for all markets)
         adapter = MorphoMarketV1AdapterFactory(config.marketV1AdapterFactory)
             .createMorphoMarketV1Adapter(address(vault), config.morpho);
         console.log("[1.1] Adapter deployed:", adapter);
-        _logCalldata("createMorphoMarketV1Adapter",
-            abi.encodeCall(MorphoMarketV1AdapterFactory.createMorphoMarketV1Adapter, (address(vault), config.morpho)));
+        _logCalldata(
+            "createMorphoMarketV1Adapter",
+            abi.encodeCall(MorphoMarketV1AdapterFactory.createMorphoMarketV1Adapter, (address(vault), config.morpho))
+        );
 
         // Step 2-4: Add adapter (submit + execute, timelock=0)
         bytes memory addAdapterData = abi.encodeCall(IVaultV2.addAdapter, (adapter));
@@ -330,7 +334,8 @@ contract AllActions is Script {
         uint256 vaultAdapterAllocation = vault.allocation(keccak256(abi.encode("this", vaultV1Adapter)));
         uint256 availableAmount = 0;
         if (vaultAdapterAllocation > 0) {
-            bytes memory deallocateVaultData = abi.encodeCall(IVaultV2.deallocate, (vaultV1Adapter, hex"", vaultAdapterAllocation));
+            bytes memory deallocateVaultData =
+                abi.encodeCall(IVaultV2.deallocate, (vaultV1Adapter, hex"", vaultAdapterAllocation));
             vault.deallocate(vaultV1Adapter, hex"", vaultAdapterAllocation);
             console.log("[5.0] Deallocated", vaultAdapterAllocation, "from VaultV1 adapter");
             _logCalldata("deallocate (from VaultV1)", deallocateVaultData);
@@ -550,7 +555,8 @@ contract AllActions is Script {
         uint256 vaultV1Allocation = vault.allocation(vaultV1AdapterId);
 
         if (vaultV1Allocation > 0) {
-            bytes memory deallocateVaultV1Data = abi.encodeCall(IVaultV2.deallocate, (vaultV1Adapter, hex"", vaultV1Allocation));
+            bytes memory deallocateVaultV1Data =
+                abi.encodeCall(IVaultV2.deallocate, (vaultV1Adapter, hex"", vaultV1Allocation));
             vault.deallocate(vaultV1Adapter, hex"", vaultV1Allocation);
             console.log("[6.4] Deallocated from VaultV1 adapter:", vaultV1Allocation);
             _logCalldata("deallocate (emergency VaultV1)", deallocateVaultV1Data);
@@ -565,7 +571,8 @@ contract AllActions is Script {
 
         if (market1Allocation > 0) {
             bytes memory market1Data = abi.encode(config.market1);
-            bytes memory deallocateData1 = abi.encodeCall(IVaultV2.deallocate, (adapter, market1Data, market1Allocation));
+            bytes memory deallocateData1 =
+                abi.encodeCall(IVaultV2.deallocate, (adapter, market1Data, market1Allocation));
 
             vault.deallocate(adapter, market1Data, market1Allocation);
             console.log("[6.5] Deallocated from market 1:", market1Allocation);
@@ -574,7 +581,8 @@ contract AllActions is Script {
 
         if (market2Allocation > 0) {
             bytes memory market2Data = abi.encode(config.market2);
-            bytes memory deallocateData2 = abi.encodeCall(IVaultV2.deallocate, (adapter, market2Data, market2Allocation));
+            bytes memory deallocateData2 =
+                abi.encodeCall(IVaultV2.deallocate, (adapter, market2Data, market2Allocation));
 
             vault.deallocate(adapter, market2Data, market2Allocation);
             console.log("[6.6] Deallocated from market 2:", market2Allocation);
