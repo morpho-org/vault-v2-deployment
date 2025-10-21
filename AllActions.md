@@ -534,6 +534,4 @@ export TIMELOCK_DURATION=0 && \
 
 ---
 
-**Document Version:** 2.0
-**Last Updated:** From broadcast file run-latest.json
 **Network:** Base Mainnet (Chain ID 8453)
