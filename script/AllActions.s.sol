@@ -687,9 +687,7 @@ contract AllActions is Script {
         console.log("[E.1] Euler vault adapter deployed:", eulerVaultAdapter);
         _logCalldata(
             "createMorphoVaultV1Adapter",
-            abi.encodeCall(
-                MorphoVaultV1AdapterFactory.createMorphoVaultV1Adapter, (address(vault), eulerVault)
-            )
+            abi.encodeCall(MorphoVaultV1AdapterFactory.createMorphoVaultV1Adapter, (address(vault), eulerVault))
         );
 
         // Step 2: Add adapter (submit + execute)
