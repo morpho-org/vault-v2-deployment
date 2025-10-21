@@ -27,11 +27,11 @@ contract AllActionsTest is Test {
 
     // Mock addresses
     address public morpho = address(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
-    address public vaultV1 = address(0xCd347c1e7d600a9A3e403497562eDd0A7Bc3Ef21);
+    address public vaultV1 = address(0xbeeF010f9cb27031ad51e3333f9aF9C6B1228183);
     address public oracle1 = address(0x663BECd10daE6C4A3Dcd89F1d76c1174199639B9);
-    address public oracle2 = address(0x773Becd10daE6C4a3Dcd89F1D76C1174199639B9);
+    address public oracle2 = address(0xFEa2D58cEfCb9fcb597723c6bAE66fFE4193aFE4);
     address public irm1 = address(0x46415998764C29aB2a25CbeA6254146D50D22687);
-    address public irm2 = address(0x56415998764C29aB2A25cBEA6254146D50D22687);
+    address public irm2 = address(0x46415998764C29aB2a25CbeA6254146D50D22687);
 
     function setUp() public {
         // Deploy mocks
