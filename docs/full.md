@@ -20,8 +20,8 @@ source .env && forge script script/full.sol:FullDeployment --rpc-url $RPC_URL --
 | 1-5 | Tokens + Oracle | testWETH, testwstETH, MockOracle (or MorphoChainlinkOracleV2) |
 | 6 | Markets | Main (86% LLTV, 90% util) + Idle |
 | 7-9 | Market Setup | Supply, collateral, borrow |
-| 10 | Vault V1 | MetaMorpho with 3-day timelock, dead deposit |
-| 11 | Vault V2 | With MorphoVaultV1Adapter, MAX_RATE (200% APR), dead deposit |
+| 10 | Morpho Vault V1 | Morpho Vault V1 with 3-day timelock, dead deposit |
+| 11 | Morpho Vault V2 | With MorphoVaultV1Adapter, MAX_RATE (200% APR), dead deposit |
 | 12-13 | MorphoMarketV1AdapterV2 | 1e9 shares to 0xdead on market, adapter timelocks |
 | 14 | Finalize | Transfer ownership, set curator/allocator/sentinel |
 
@@ -29,21 +29,21 @@ source .env && forge script script/full.sol:FullDeployment --rpc-url $RPC_URL --
 
 | Feature | MorphoVaultV1Adapter | MorphoMarketV1AdapterV2 |
 |---------|---------------------|-------------------------|
-| Target | Vault V1 (MetaMorpho) | Morpho Blue markets directly |
-| Timelocks | None (inherits from VaultV2) | Own timelock system (default: 3 days) |
+| Target | Morpho Vault V1 (Morpho Vault V1) | Morpho Market V1 markets directly |
+| Timelocks | None (inherits from Morpho Vault V2) | Own timelock system (default: 3 days) |
 | allocate/deallocate data | Empty bytes | `abi.encode(MarketParams)` |
 | IRM requirement | Any | Must be Adaptive Curve IRM |
-| Dead deposit | Vault V1 level | Morpho market level (1e9 shares to 0xdead) |
+| Dead deposit | Morpho Vault V1 level | Morpho market level (1e9 shares to 0xdead) |
 | ID structure | Single `adapterId` | 3 IDs: adapterId, collateralToken, this/marketParams |
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `MORPHO_ADDRESS` | Yes | Morpho Blue contract address |
+| `MORPHO_ADDRESS` | Yes | Morpho Market V1 contract address |
 | `IRM_ADDRESS` | Yes | Adaptive Curve IRM address |
-| `VAULT_V1_FACTORY_ADDRESS` | Yes | MetaMorpho factory address |
-| `VAULT_V2_FACTORY` | Yes | VaultV2Factory address |
+| `VAULT_V1_FACTORY_ADDRESS` | Yes | Morpho Vault V1 factory address |
+| `VAULT_V2_FACTORY` | Yes | MorphoVaultV2Factory address |
 | `ADAPTER_REGISTRY` | Yes | Adapter registry address |
 | `MORPHO_VAULT_V1_ADAPTER_FACTORY` | Yes | MorphoVaultV1AdapterFactory address |
 | `MORPHO_MARKET_V1_ADAPTER_V2_FACTORY` | Yes | MorphoMarketV1AdapterV2Factory address |
@@ -52,9 +52,9 @@ source .env && forge script script/full.sol:FullDeployment --rpc-url $RPC_URL --
 | `CURATOR` | No | Curator address (defaults to OWNER) |
 | `ALLOCATOR` | No | Allocator address (defaults to OWNER) |
 | `SENTINEL` | No | Sentinel address (optional) |
-| `TIMELOCK_DURATION` | No | Vault V2 timelock duration in seconds (default: 0) |
+| `TIMELOCK_DURATION` | No | Morpho Vault V2 timelock duration in seconds (default: 0) |
 | `ADAPTER_TIMELOCK_DURATION` | No | MorphoMarketV1AdapterV2 timelock duration (default: 3 days) |
-| `DEAD_DEPOSIT_AMOUNT` | No | Dead deposit for Vault V2 in wei (default: 1e9) |
+| `DEAD_DEPOSIT_AMOUNT` | No | Dead deposit for Morpho Vault V2 in wei (default: 1e9) |
 | `LOAN_TOKEN` | No | Existing loan token address (deploys new if not set) |
 | `COLLATERAL_TOKEN` | No | Existing collateral token address (deploys new if not set) |
 | `DEPLOYED_ORACLE` | No | Existing oracle address (deploys new if not set) |
@@ -62,5 +62,5 @@ source .env && forge script script/full.sol:FullDeployment --rpc-url $RPC_URL --
 ## Notes
 
 - Gas: ~20-25M total. Use `--gas-estimate-multiplier 200` on live networks.
-- Vault V1 timelock: Always 3 days (hardcoded)
+- Morpho Vault V1 timelock: Always 3 days (hardcoded)
 - MAX_RATE for Morpho Vault V2: 200% APR (hardcoded)
