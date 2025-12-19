@@ -7,7 +7,6 @@ optimizer = true
 optimizer_runs = 200
 via_ir = true
 
-[dependencies]
-forge-std = "1.9.7"
-vault-v2 = { git = "git@github.com:morpho-org/vault-v2.git", version = "0.0.0" }
-openzeppelin-contracts = { git = "git@github.com:OpenZeppelin/openzeppelin-contracts.git", tag = "v5.0.2", version = "5.0.2" }
+remappings = [
+  "metamorpho-v1.1-morpho-blue/=lib/vault-v2/lib/metamorpho-v1.1/lib/morpho-blue/",
+]
