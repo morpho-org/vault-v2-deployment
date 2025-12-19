@@ -8,7 +8,6 @@ import {VaultV2} from "vault-v2/VaultV2.sol";
 import {VaultV2Factory} from "vault-v2/VaultV2Factory.sol";
 import {MorphoVaultV1AdapterFactory} from "vault-v2/adapters/MorphoVaultV1AdapterFactory.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {IERC4626 as IVaultV1} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 /**
