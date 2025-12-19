@@ -17,6 +17,7 @@ import {IMorphoMarketV1AdapterV2} from "vault-v2/adapters/interfaces/IMorphoMark
 /// @notice Mintable ERC20 for testing
 contract TestWETH is ERC20 {
     constructor() ERC20("Test Wrapped ETH", "testWETH") {}
+
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
@@ -25,6 +26,7 @@ contract TestWETH is ERC20 {
 /// @notice Mintable ERC20 for collateral testing
 contract TestWstETH is ERC20 {
     constructor() ERC20("Test Wrapped stETH", "testwstETH") {}
+
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
@@ -212,19 +214,20 @@ contract FullDeployment is Script {
         } else if (oracleFactory != address(0)) {
             // Use MorphoChainlinkOracleV2Factory
             bytes32 salt = keccak256(abi.encodePacked(block.timestamp, gasleft()));
-            oracle = IMorphoChainlinkOracleV2Factory(oracleFactory).createMorphoChainlinkOracleV2(
-                IERC4626(address(0)), // baseVault - no vault
-                1,                     // baseVaultConversionSample
-                address(0),            // baseFeed1 - no feed
-                address(0),            // baseFeed2 - no feed
-                18,                    // baseTokenDecimals (testwstETH)
-                IERC4626(address(0)), // quoteVault - no vault
-                1,                     // quoteVaultConversionSample
-                address(0),            // quoteFeed1 - no feed
-                address(0),            // quoteFeed2 - no feed
-                18,                    // quoteTokenDecimals (testWETH)
-                salt
-            );
+            oracle = IMorphoChainlinkOracleV2Factory(oracleFactory)
+                .createMorphoChainlinkOracleV2(
+                    IERC4626(address(0)), // baseVault - no vault
+                    1, // baseVaultConversionSample
+                    address(0), // baseFeed1 - no feed
+                    address(0), // baseFeed2 - no feed
+                    18, // baseTokenDecimals (testwstETH)
+                    IERC4626(address(0)), // quoteVault - no vault
+                    1, // quoteVaultConversionSample
+                    address(0), // quoteFeed1 - no feed
+                    address(0), // quoteFeed2 - no feed
+                    18, // quoteTokenDecimals (testWETH)
+                    salt
+                );
             console.log("MorphoChainlinkOracleV2 deployed at:", oracle);
         } else {
             // Deploy mock oracle
@@ -260,11 +263,7 @@ contract FullDeployment is Script {
 
         // Idle Market
         MarketParams memory idleMarketParams = MarketParams({
-            loanToken: address(loanToken),
-            collateralToken: address(0),
-            oracle: address(0),
-            irm: address(0),
-            lltv: 0
+            loanToken: address(loanToken), collateralToken: address(0), oracle: address(0), irm: address(0), lltv: 0
         });
 
         idleMarketId = _computeMarketId(idleMarketParams);
@@ -286,7 +285,9 @@ contract FullDeployment is Script {
 
         // Check if already supplied
         if (morpho.market(mainMarketId).totalSupplyAssets >= SUPPLY_AMOUNT) {
-            console.log("Loan tokens already supplied:", morpho.market(mainMarketId).totalSupplyAssets / 1e18, "testWETH");
+            console.log(
+                "Loan tokens already supplied:", morpho.market(mainMarketId).totalSupplyAssets / 1e18, "testWETH"
+            );
             console.log("");
             return;
         }
@@ -368,8 +369,9 @@ contract FullDeployment is Script {
         vaultV1.setCurator(msg.sender);
         console.log("Curator set to deployer (temporary)");
 
-        MarketParams memory idleMarketParams =
-            MarketParams({loanToken: address(loanToken), collateralToken: address(0), oracle: address(0), irm: address(0), lltv: 0});
+        MarketParams memory idleMarketParams = MarketParams({
+            loanToken: address(loanToken), collateralToken: address(0), oracle: address(0), irm: address(0), lltv: 0
+        });
 
         vaultV1.submitCap(idleMarketParams, type(uint184).max);
         vaultV1.acceptCap(idleMarketParams);
@@ -421,14 +423,15 @@ contract FullDeployment is Script {
         console.log("=== Phase 11: Deploy Vault V2 ===");
 
         bytes32 salt = keccak256(abi.encodePacked("VaultV2", block.timestamp, gasleft()));
-        vaultV2 = VaultV2(VaultV2Factory(config.vaultV2FactoryAddress).createVaultV2(msg.sender, address(loanToken), salt));
+        vaultV2 =
+            VaultV2(VaultV2Factory(config.vaultV2FactoryAddress).createVaultV2(msg.sender, address(loanToken), salt));
         console.log("Vault V2 deployed at:", address(vaultV2));
 
         vaultV2.setCurator(msg.sender);
         console.log("Temporary curator set");
 
-        morphoVaultAdapter =
-            MorphoVaultV1AdapterFactory(config.morphoVaultV1AdapterFactory).createMorphoVaultV1Adapter(address(vaultV2), address(vaultV1));
+        morphoVaultAdapter = MorphoVaultV1AdapterFactory(config.morphoVaultV1AdapterFactory)
+            .createMorphoVaultV1Adapter(address(vaultV2), address(vaultV1));
         console.log("MorphoVaultV1Adapter deployed at:", morphoVaultAdapter);
 
         bytes memory adapterIdData = abi.encode("this", morphoVaultAdapter);
@@ -530,12 +533,13 @@ contract FullDeployment is Script {
     function _deployMorphoMarketAdapter(Config memory config) internal {
         console.log("=== Phase 13: Deploy MorphoMarketV1AdapterV2 ===");
 
-        morphoMarketAdapter =
-            IMorphoMarketV1AdapterV2Factory(config.morphoMarketV1AdapterV2Factory).createMorphoMarketV1AdapterV2(address(vaultV2));
+        morphoMarketAdapter = IMorphoMarketV1AdapterV2Factory(config.morphoMarketV1AdapterV2Factory)
+            .createMorphoMarketV1AdapterV2(address(vaultV2));
         console.log("MorphoMarketV1AdapterV2 deployed at:", morphoMarketAdapter);
 
         require(
-            IMorphoMarketV1AdapterV2Factory(config.morphoMarketV1AdapterV2Factory).isMorphoMarketV1AdapterV2(morphoMarketAdapter),
+            IMorphoMarketV1AdapterV2Factory(config.morphoMarketV1AdapterV2Factory)
+                .isMorphoMarketV1AdapterV2(morphoMarketAdapter),
             "Adapter not registered in factory"
         );
         console.log("Factory verification passed");
@@ -624,15 +628,7 @@ contract FullDeployment is Script {
 
     function _computeMarketId(MarketParams memory params) internal pure returns (Id) {
         return Id.wrap(
-            keccak256(
-                abi.encode(
-                    params.loanToken,
-                    params.collateralToken,
-                    params.oracle,
-                    params.irm,
-                    params.lltv
-                )
-            )
+            keccak256(abi.encode(params.loanToken, params.collateralToken, params.oracle, params.irm, params.lltv))
         );
     }
 

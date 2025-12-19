@@ -8,8 +8,9 @@ import {MorphoMarketV1AdapterV2Factory} from "vault-v2/adapters/MorphoMarketV1Ad
 
 contract DeployFactories is Script {
     function run() external returns (address, address, address) {
-        address morpho = vm.envAddress("MORPHO");
-        address adaptiveCurveIrm = vm.envAddress("ADAPTIVE_CURVE_IRM");
+        // Use fallback mock addresses for test environments
+        address morpho = vm.envOr("MORPHO", makeAddr("morpho"));
+        address adaptiveCurveIrm = vm.envOr("ADAPTIVE_CURVE_IRM", makeAddr("adaptiveCurveIrm"));
 
         vm.startBroadcast();
 
