@@ -8,6 +8,7 @@ broadcast
 
 # Dotenv file
 .env*
+!.env.example
 
 # Addresses
 addresses/31337.json
