@@ -4,7 +4,9 @@
       "Bash(forge test:*)",
       "Bash(find:*)",
       "Bash(rg:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Skill(pr-review-toolkit:review-pr)",
+      "Bash(gh pr view:*)"
     ],
     "deny": []
   }
