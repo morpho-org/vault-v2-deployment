@@ -171,11 +171,7 @@ contract DeployVaultV2WithMarketAdapter is Script {
 
         // Phase 8: Configure first market if specified
         if (config.marketId != bytes32(0)) {
-            _configureFirstMarket(
-                deployedVaultV2,
-                IMorphoMarketV1AdapterV2(morphoMarketAdapterAddress),
-                config
-            );
+            _configureFirstMarket(deployedVaultV2, IMorphoMarketV1AdapterV2(morphoMarketAdapterAddress), config);
         }
 
         vm.stopBroadcast();
@@ -398,11 +394,9 @@ contract DeployVaultV2WithMarketAdapter is Script {
      *      5. Configures collateral token cap
      *      6. Configures market cap
      */
-    function _configureFirstMarket(
-        VaultV2 vault,
-        IMorphoMarketV1AdapterV2 adapter,
-        DeploymentConfig memory config
-    ) internal {
+    function _configureFirstMarket(VaultV2 vault, IMorphoMarketV1AdapterV2 adapter, DeploymentConfig memory config)
+        internal
+    {
         address morpho = adapter.morpho();
 
         // Look up MarketParams from Morpho
