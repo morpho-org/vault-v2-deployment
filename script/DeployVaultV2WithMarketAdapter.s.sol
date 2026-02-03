@@ -27,6 +27,34 @@ import {IMorpho, MarketParams, Id, Position} from "morpho-blue/src/interfaces/IM
  *
  *      After deployment, you must configure market caps for each market you want to use.
  *      See docs/build_own_script.md for market configuration details.
+ *
+ *      ============================================================================
+ *      MORPHO LISTING REQUIREMENT: Naming Restriction
+ *      ============================================================================
+ *      The vault's name and symbol CANNOT contain the word "morpho" (case insensitive).
+ *
+ *      This is validated during the listing process, not by this script.
+ *      When creating your vault, ensure you choose a name/symbol that does NOT include:
+ *      - "morpho", "Morpho", "MORPHO", etc.
+ *
+ *      Example valid names: "My USDC Vault", "Blue Chip Yield"
+ *      Example invalid names: "Morpho USDC Vault", "My MorphoVault"
+ *      ============================================================================
+ *
+ *      ============================================================================
+ *      DEPLOYMENT PHASES OVERVIEW
+ *      ============================================================================
+ *      Phase 1:  Deploy VaultV2 instance via factory
+ *      Phase 2:  Configure temporary permissions for deployment
+ *      Phase 3:  Deploy MorphoMarketV1AdapterV2 via factory
+ *      Phase 4:  Submit timelocked configuration changes
+ *      Phase 5:  Execute immediate configuration changes + abdications
+ *      Phase 6:  Set final role assignments (owner, curator, sentinel)
+ *      Phase 7:  Configure market and liquidity adapter (if MARKET_ID provided)
+ *      Phase 8:  Execute vault dead deposit (inflation attack protection)
+ *      Phase 9:  Configure vault timelocks (LISTING REQUIREMENT)
+ *      Phase 10: Configure adapter timelocks (LISTING REQUIREMENT)
+ *      ============================================================================
  */
 contract DeployVaultV2WithMarketAdapter is Script {
     uint256 constant DEAD_DEPOSIT_HIGH_DECIMALS = 1e9; // For assets with >= 10 decimals
@@ -35,6 +63,28 @@ contract DeployVaultV2WithMarketAdapter is Script {
 
     /**
      * @notice Configuration struct for deployment parameters
+     * @dev Each field serves a specific purpose in the deployment:
+     *
+     *      ROLE ADDRESSES:
+     *      - vaultOwner: Final owner after deployment, has full administrative control
+     *      - vaultCurator: Can manage vault parameters (caps, markets, etc.)
+     *      - vaultAllocator: Can allocate/deallocate funds between adapters
+     *      - vaultSentinel: Emergency role for protective actions (optional)
+     *
+     *      INFRASTRUCTURE:
+     *      - asset: The underlying ERC20 token the vault accepts (e.g., USDC, WETH)
+     *      - adapterRegistry: Morpho's registry that validates adapters
+     *      - vaultV2FactoryAddress: Factory contract for creating VaultV2 instances
+     *      - morphoMarketAdapterFactoryAddress: Factory for MorphoMarketV1AdapterV2
+     *
+     *      FIRST MARKET (OPTIONAL):
+     *      - marketId: Morpho Blue market ID (bytes32(0) to skip market setup)
+     *      - collateralTokenCap: Maximum allocation to this collateral token
+     *      - marketCap: Maximum allocation to this specific market
+     *
+     *      TIMELOCKS (MORPHO LISTING REQUIREMENT):
+     *      - vaultTimelockDuration: Timelock for vault functions (minimum 3 days for listing)
+     *      - adapterTimelockDuration: Timelock for adapter functions (minimum 3 days for listing)
      */
     struct DeploymentConfig {
         address vaultOwner;
@@ -49,6 +99,10 @@ contract DeployVaultV2WithMarketAdapter is Script {
         bytes32 marketId;
         uint128 collateralTokenCap;
         uint128 marketCap;
+        // Timelock configuration (MORPHO LISTING REQUIREMENT)
+        // Set to 0 to skip timelocks (vault will NOT meet listing requirements)
+        uint256 vaultTimelockDuration;
+        uint256 adapterTimelockDuration;
     }
 
     /**
@@ -73,6 +127,8 @@ contract DeployVaultV2WithMarketAdapter is Script {
      * @param marketId Morpho Blue market ID for first market (bytes32(0) to skip market setup)
      * @param collateralTokenCap Absolute cap for collateral token level
      * @param marketCap Absolute cap for market level
+     * @param vaultTimelockDuration Timelock duration for vault functions (0 to skip)
+     * @param adapterTimelockDuration Timelock duration for adapter functions (0 to skip)
      * @return vaultV2Address The address of the deployed VaultV2 instance
      */
     function runWithArguments(
@@ -86,7 +142,9 @@ contract DeployVaultV2WithMarketAdapter is Script {
         address morphoMarketAdapterFactoryAddress,
         bytes32 marketId,
         uint128 collateralTokenCap,
-        uint128 marketCap
+        uint128 marketCap,
+        uint256 vaultTimelockDuration,
+        uint256 adapterTimelockDuration
     ) public returns (address) {
         DeploymentConfig memory config = DeploymentConfig({
             vaultOwner: vaultOwner,
@@ -99,7 +157,9 @@ contract DeployVaultV2WithMarketAdapter is Script {
             morphoMarketAdapterFactoryAddress: morphoMarketAdapterFactoryAddress,
             marketId: marketId,
             collateralTokenCap: collateralTokenCap,
-            marketCap: marketCap
+            marketCap: marketCap,
+            vaultTimelockDuration: vaultTimelockDuration,
+            adapterTimelockDuration: adapterTimelockDuration
         });
 
         return deployVaultV2WithConfig(config);
@@ -108,6 +168,11 @@ contract DeployVaultV2WithMarketAdapter is Script {
     /**
      * @notice Read configuration from environment variables
      * @return config Deployment configuration struct
+     * @dev Environment variables:
+     *      Required: OWNER, ASSET, ADAPTER_REGISTRY, VAULT_V2_FACTORY, MORPHO_MARKET_V1_ADAPTER_V2_FACTORY
+     *      Optional: CURATOR, ALLOCATOR, SENTINEL (defaults to OWNER or address(0))
+     *      Market: MARKET_ID, COLLATERAL_TOKEN_CAP, MARKET_CAP (set MARKET_ID=0x0 to skip)
+     *      Timelocks: VAULT_TIMELOCK_DURATION, ADAPTER_TIMELOCK_DURATION (in seconds, 0 to skip)
      */
     function _readEnvironmentConfig() internal view returns (DeploymentConfig memory config) {
         config.vaultOwner = vm.envAddress("OWNER");
@@ -122,6 +187,9 @@ contract DeployVaultV2WithMarketAdapter is Script {
         config.marketId = vm.envOr("MARKET_ID", bytes32(0));
         config.collateralTokenCap = uint128(vm.envOr("COLLATERAL_TOKEN_CAP", uint256(0)));
         config.marketCap = uint128(vm.envOr("MARKET_CAP", uint256(0)));
+        // Timelock configuration (MORPHO LISTING REQUIREMENT: minimum 3 days = 259200 seconds)
+        config.vaultTimelockDuration = vm.envOr("VAULT_TIMELOCK_DURATION", uint256(0));
+        config.adapterTimelockDuration = vm.envOr("ADAPTER_TIMELOCK_DURATION", uint256(0));
     }
 
     /**
@@ -166,12 +234,85 @@ contract DeployVaultV2WithMarketAdapter is Script {
         // Phase 6: Set final role assignments
         _setFinalRoleAssignments(deployedVaultV2, config.vaultOwner, config.vaultCurator, config.vaultSentinel);
 
-        // Phase 7: Execute vault dead deposit (always required for inflation attack protection)
+        // ============================================================================
+        // Phase 7: Configure market and liquidity adapter if specified
+        // ============================================================================
+        // MORPHO LISTING REQUIREMENT: No Idle Liquidity
+        // ============================================================================
+        // The listing requirement states: "Vault asset balance must be zero"
+        //
+        // This means ALL deposited funds must be allocated to markets, not sitting
+        // idle in the vault contract. The liquidityAdapter automatically allocates
+        // incoming deposits to the configured market.
+        //
+        // WITHOUT a market configured (MARKET_ID = 0):
+        //   - liquidityAdapter is NOT set
+        //   - Deposits stay idle in the vault
+        //   - This violates the "No Idle Liquidity" listing requirement
+        //   - The vault will NOT be eligible for Morpho app listing
+        //
+        // WITH a market configured:
+        //   - liquidityAdapter is set with encoded MarketParams
+        //   - Deposits automatically allocate to the market
+        //   - Vault satisfies the "No Idle Liquidity" requirement
+        // ============================================================================
+        //
+        // IMPORTANT: This must happen BEFORE the dead deposit because:
+        // - MorphoMarketV1AdapterV2 requires encoded MarketParams in liquidityData
+        // - If liquidityAdapter is set with empty data, allocate() will revert on abi.decode
+        // - Without a market, we leave liquidityAdapter unset so deposits stay idle in vault
+        if (config.marketId != bytes32(0)) {
+            _configureMarketAndLiquidityAdapter(
+                deployedVaultV2, IMorphoMarketV1AdapterV2(morphoMarketAdapterAddress), config
+            );
+        } else {
+            console.log("Phase 7: Skipped - no MARKET_ID provided");
+            console.log("  liquidityAdapter NOT set - deposits will stay idle in vault");
+            console.log("  WARNING: Vault will NOT meet 'No Idle Liquidity' listing requirement");
+            console.log("  Configure a market before accepting external deposits");
+        }
+
+        // Phase 8: Execute vault dead deposit (always required for inflation attack protection)
+        // Now works correctly because liquidityAdapter is either:
+        // - Set with encoded MarketParams (allocates to market)
+        // - Not set (deposits stays idle in vault)
         _executeVaultDeadDeposit(deployedVaultV2, config.asset);
 
-        // Phase 8: Configure first market if specified
-        if (config.marketId != bytes32(0)) {
-            _configureFirstMarket(deployedVaultV2, IMorphoMarketV1AdapterV2(morphoMarketAdapterAddress), config);
+        // ============================================================================
+        // Phase 9: Configure vault timelocks (BEFORE transferring ownership)
+        // ============================================================================
+        // MORPHO LISTING REQUIREMENT: Timelocks must be configured
+        // - 7 days minimum: increaseTimelock, removeAdapter, abdicate
+        // - 3 days minimum: addAdapter, increaseRelativeCap, setForceDeallocatePenalty, increaseAbsoluteCap
+        //
+        // NOTE: We configure all functions with the same duration for simplicity.
+        // The minimum required is 3 days (259200 seconds) for listing eligibility.
+        // ============================================================================
+        if (config.vaultTimelockDuration > 0) {
+            _configureVaultTimelocks(deployedVaultV2, config.vaultTimelockDuration);
+        } else {
+            console.log("Phase 9: Skipped - VAULT_TIMELOCK_DURATION is 0");
+            console.log("  WARNING: Vault will NOT meet Morpho listing requirements without timelocks");
+        }
+
+        // ============================================================================
+        // Phase 10: Configure adapter timelocks
+        // ============================================================================
+        // MORPHO LISTING REQUIREMENT: burnShares timelock must be >= 3 days
+        //
+        // The adapter has its own independent timelock system separate from the vault.
+        // Key functions that need timelocks:
+        // - burnShares: Prevents immediate share burning (protects against manipulation)
+        // - setSkimRecipient: Controls who receives skimmed tokens
+        // - abdicate: Permanently disables functions
+        // ============================================================================
+        if (config.adapterTimelockDuration > 0) {
+            _configureAdapterTimelocks(
+                IMorphoMarketV1AdapterV2(morphoMarketAdapterAddress), config.adapterTimelockDuration
+            );
+        } else {
+            console.log("Phase 10: Skipped - ADAPTER_TIMELOCK_DURATION is 0");
+            console.log("  WARNING: Adapter will NOT meet Morpho listing requirements without timelocks");
         }
 
         vm.stopBroadcast();
@@ -263,8 +404,8 @@ contract DeployVaultV2WithMarketAdapter is Script {
         // Submit adapter registry configuration
         vault.submit(abi.encodeCall(vault.setAdapterRegistry, (registry)));
 
-        // Submit liquidity adapter configuration
-        vault.submit(abi.encodeCall(vault.setLiquidityAdapterAndData, (adapter, bytes(""))));
+        // NOTE: liquidityAdapterAndData is NOT set here - it requires encoded MarketParams
+        // It will be set in _configureMarketAndLiquidityAdapter when a market is specified
 
         // Submit adapter and cap configurations
         bytes memory adapterIdData = abi.encode("this", adapter);
@@ -308,7 +449,9 @@ contract DeployVaultV2WithMarketAdapter is Script {
 
         // Execute adapter configuration
         vault.addAdapter(adapter);
-        vault.setLiquidityAdapterAndData(adapter, bytes(""));
+
+        // NOTE: liquidityAdapterAndData is NOT set here - it requires encoded MarketParams
+        // It will be set in _configureMarketAndLiquidityAdapter when a market is specified
 
         // Execute adapter-level cap configurations
         bytes memory adapterIdData = abi.encode("this", adapter);
@@ -376,42 +519,70 @@ contract DeployVaultV2WithMarketAdapter is Script {
     /**
      * @notice Execute dead deposit to seed the vault with initial liquidity
      * @dev Always required for inflation attack protection. Amount is determined by asset decimals.
+     *      In simulation mode (without --broadcast), the deployer may not have tokens,
+     *      so we use a try/catch to handle this gracefully.
      */
     function _executeVaultDeadDeposit(VaultV2 vault, address asset) internal {
         uint256 depositAmount = _getDeadDepositAmount(asset);
+        address depositor = tx.origin;
+
+        // Check deployer's balance
+        uint256 balance = IERC20(asset).balanceOf(depositor);
+        if (balance < depositAmount) {
+            console.log("Phase 8: SKIPPED - Insufficient token balance for dead deposit");
+            console.log("  Required:", depositAmount);
+            console.log("  Available:", balance);
+            console.log("  NOTE: In production, ensure deployer has sufficient tokens");
+            console.log("  The dead deposit is REQUIRED before the vault can accept external deposits");
+            return;
+        }
+
         IERC20(asset).approve(address(vault), depositAmount);
         vault.deposit(depositAmount, address(0xdead));
-        console.log("Phase 7: Vault dead deposit executed:", depositAmount, "wei to 0xdead");
+        console.log("Phase 8: Vault dead deposit executed:", depositAmount, "wei to 0xdead");
     }
 
     /**
-     * @notice Configure the first market with dead deposit check and cap setup
+     * @notice Configure the first market with liquidity adapter setup and cap configuration
      * @dev This function:
      *      1. Looks up MarketParams from Morpho using idToMarketParams
      *      2. Validates market params (loanToken matches asset, irm matches adaptiveCurveIrm)
-     *      3. Checks if market has dead deposit (>= required shares at 0xdead)
-     *      4. If not, supplies to create dead deposit
-     *      5. Configures collateral token cap
-     *      6. Configures market cap
+     *      3. Sets liquidityAdapterAndData with encoded MarketParams (required for allocate)
+     *      4. Checks if market has dead deposit (>= required shares at 0xdead)
+     *      5. If not, supplies to create dead deposit
+     *      6. Configures collateral token cap
+     *      7. Configures market cap
+     *
+     *      IMPORTANT: liquidityAdapterAndData must be set with encoded MarketParams because
+     *      MorphoMarketV1AdapterV2.allocate() does: `abi.decode(data, (MarketParams))`
+     *      Setting it with empty data causes allocate to revert.
      */
-    function _configureFirstMarket(VaultV2 vault, IMorphoMarketV1AdapterV2 adapter, DeploymentConfig memory config)
-        internal
-    {
+    function _configureMarketAndLiquidityAdapter(
+        VaultV2 vault,
+        IMorphoMarketV1AdapterV2 adapter,
+        DeploymentConfig memory config
+    ) internal {
         address morpho = adapter.morpho();
 
         // Look up MarketParams from Morpho
         MarketParams memory marketParams = IMorpho(morpho).idToMarketParams(Id.wrap(config.marketId));
 
         // Validate market params
-        require(marketParams.loanToken == config.asset, "Market loanToken does not match vault asset");
-        require(marketParams.irm == adapter.adaptiveCurveIrm(), "Market IRM does not match adaptiveCurveIrm");
-        require(marketParams.collateralToken != address(0), "Market not found (collateralToken is zero)");
+        _validateMarketParams(marketParams, config.asset, adapter.adaptiveCurveIrm());
 
-        console.log("Phase 8: Configuring first market");
+        console.log("Phase 7: Configuring market and liquidity adapter");
         console.log("  Market ID:", vm.toString(config.marketId));
         console.log("  Collateral Token:", marketParams.collateralToken);
         console.log("  Oracle:", marketParams.oracle);
         console.log("  LLTV:", marketParams.lltv);
+
+        // KEY FIX: Set liquidityAdapterAndData with encoded MarketParams
+        // This is required because MorphoMarketV1AdapterV2.allocate() decodes the data as MarketParams
+        bytes memory liquidityData = abi.encode(marketParams);
+        vault.submit(abi.encodeCall(vault.setLiquidityAdapterAndData, (address(adapter), liquidityData)));
+        vault.setLiquidityAdapterAndData(address(adapter), liquidityData);
+
+        console.log("  Liquidity adapter set with encoded MarketParams");
 
         // Determine required dead deposit amount based on asset decimals
         uint256 requiredDeadDeposit = _getDeadDepositAmount(config.asset);
@@ -424,11 +595,19 @@ contract DeployVaultV2WithMarketAdapter is Script {
             console.log("  Market needs dead deposit, current shares:", deadSupplyShares);
             console.log("  Required shares:", requiredDeadDeposit);
 
-            // Approve and supply to create dead deposit
-            IERC20(config.asset).approve(morpho, requiredDeadDeposit);
-            IMorpho(morpho).supply(marketParams, requiredDeadDeposit, 0, address(0xdead), hex"");
-
-            console.log("  Market dead deposit created:", requiredDeadDeposit, "assets to 0xdead");
+            // Check deployer's balance for market dead deposit
+            uint256 balance = IERC20(config.asset).balanceOf(tx.origin);
+            if (balance < requiredDeadDeposit) {
+                console.log("  SKIPPED - Insufficient token balance for market dead deposit");
+                console.log("  Required:", requiredDeadDeposit);
+                console.log("  Available:", balance);
+                console.log("  NOTE: In production, ensure market has dead deposit before use");
+            } else {
+                // Approve and supply to create dead deposit
+                IERC20(config.asset).approve(morpho, requiredDeadDeposit);
+                IMorpho(morpho).supply(marketParams, requiredDeadDeposit, 0, address(0xdead), hex"");
+                console.log("  Market dead deposit created:", requiredDeadDeposit, "assets to 0xdead");
+            }
         } else {
             console.log("  Market already has sufficient dead deposit:", deadSupplyShares, "shares");
         }
@@ -450,5 +629,88 @@ contract DeployVaultV2WithMarketAdapter is Script {
         vault.increaseRelativeCap(marketIdData, 1e18);
 
         console.log("  Market cap set:", config.marketCap, "(absolute), 100% (relative)");
+    }
+
+    /**
+     * @notice Validate that MarketParams match expected values
+     * @param marketParams The market parameters to validate
+     * @param expectedAsset The expected loan token address (vault's underlying asset)
+     * @param expectedIrm The expected IRM address (adapter's adaptiveCurveIrm)
+     */
+    function _validateMarketParams(MarketParams memory marketParams, address expectedAsset, address expectedIrm)
+        internal
+        pure
+    {
+        require(marketParams.loanToken == expectedAsset, "Market loanToken does not match vault asset");
+        require(marketParams.irm == expectedIrm, "Market IRM does not match adaptiveCurveIrm");
+        require(marketParams.collateralToken != address(0), "Market not found (collateralToken is zero)");
+    }
+
+    /**
+     * @notice Configure timelocks for VaultV2 functions
+     * @param vault The VaultV2 instance to configure
+     * @param timelockDuration The timelock duration in seconds
+     * @dev MORPHO LISTING REQUIREMENT: Timelocks must be 3-7 days depending on function
+     *      - 7 days minimum: increaseTimelock, removeAdapter, abdicate
+     *      - 3 days minimum: addAdapter, increaseRelativeCap, setForceDeallocatePenalty, increaseAbsoluteCap
+     *
+     *      IMPORTANT: increaseTimelock.selector must be configured LAST because once timelocked,
+     *      subsequent calls require waiting for the timelock to expire.
+     *
+     *      This function configures all timelocked functions with the same duration for simplicity.
+     *      For production deployments, you may want to configure different durations per function.
+     */
+    function _configureVaultTimelocks(VaultV2 vault, uint256 timelockDuration) internal {
+        // Configure timelocks for key vault functions
+        // Order matters: increaseTimelock.selector MUST be last!
+        bytes4[] memory selectors = new bytes4[](7);
+        // 3-day minimum functions
+        selectors[0] = IVaultV2.addAdapter.selector;
+        selectors[1] = IVaultV2.increaseAbsoluteCap.selector;
+        selectors[2] = IVaultV2.increaseRelativeCap.selector;
+        selectors[3] = IVaultV2.setForceDeallocatePenalty.selector;
+        // 7-day minimum functions
+        selectors[4] = IVaultV2.abdicate.selector;
+        selectors[5] = IVaultV2.removeAdapter.selector;
+        selectors[6] = IVaultV2.increaseTimelock.selector; // MUST BE LAST!
+
+        for (uint256 i = 0; i < selectors.length; i++) {
+            vault.submit(abi.encodeCall(vault.increaseTimelock, (selectors[i], timelockDuration)));
+            vault.increaseTimelock(selectors[i], timelockDuration);
+        }
+
+        console.log("Phase 9: Vault timelocks configured:", timelockDuration, "seconds");
+    }
+
+    /**
+     * @notice Configure timelocks for MorphoMarketV1AdapterV2 functions
+     * @param adapter The adapter instance to configure
+     * @param timelockDuration The timelock duration in seconds
+     * @dev MORPHO LISTING REQUIREMENT: burnShares timelock must be >= 3 days
+     *
+     *      The adapter has its own independent timelock system separate from the vault.
+     *      Key functions that need timelocks:
+     *      - burnShares: Prevents immediate share burning (protects against manipulation)
+     *      - setSkimRecipient: Controls who receives skimmed tokens
+     *      - abdicate: Permanently disables functions
+     *
+     *      IMPORTANT: increaseTimelock.selector must be configured LAST because once timelocked,
+     *      subsequent calls require waiting for the timelock to expire.
+     */
+    function _configureAdapterTimelocks(IMorphoMarketV1AdapterV2 adapter, uint256 timelockDuration) internal {
+        // Configure timelocks for key adapter functions
+        // Order matters: increaseTimelock.selector MUST be last!
+        bytes4[] memory selectors = new bytes4[](4);
+        selectors[0] = IMorphoMarketV1AdapterV2.abdicate.selector;
+        selectors[1] = IMorphoMarketV1AdapterV2.setSkimRecipient.selector;
+        selectors[2] = IMorphoMarketV1AdapterV2.burnShares.selector;
+        selectors[3] = IMorphoMarketV1AdapterV2.increaseTimelock.selector; // MUST BE LAST!
+
+        for (uint256 i = 0; i < selectors.length; i++) {
+            adapter.submit(abi.encodeCall(adapter.increaseTimelock, (selectors[i], timelockDuration)));
+            adapter.increaseTimelock(selectors[i], timelockDuration);
+        }
+
+        console.log("Phase 10: Adapter timelocks configured:", timelockDuration, "seconds");
     }
 }
